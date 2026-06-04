@@ -1,0 +1,363 @@
+```html
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>旅遊小幫手 App</title>
+    <!-- 引入 Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 FontAwesome 圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- 設定 Tailwind 的莫蘭迪自訂色系 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        morandi: {
+                            bg: '#F4F4F0',      /* 溫暖的灰白色背景 */
+                            card: '#FAFAFA',    /* 卡片白 */
+                            text: '#5C5C5C',    /* 柔和的深灰文字 */
+                            green: '#8EA49A',   /* 莫蘭迪綠 (主色) */
+                            sand: '#C5B4A0',    /* 莫蘭迪沙色 */
+                            blue: '#8493A6',    /* 莫蘭迪藍 */
+                            rose: '#C0A3A8',    /* 莫蘭迪粉 */
+                            border: '#E2E2E0'   /* 柔和的邊框色 */
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 隱藏滾動條但保留滾動功能，讓畫面更像 App */
+        ::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+        body {
+            background-color: #e5e5e5; /* 在大螢幕時的背景色 */
+        }
+        /* 讓文字選取時的顏色符合主題 */
+        ::selection {
+            background: #8EA49A;
+            color: white;
+        }
+    </style>
+</head>
+<body class="flex justify-center min-h-screen">
+
+<!-- App 容器 (模擬手機螢幕尺寸) -->
+<div id="app" class="w-full max-w-md bg-morandi-bg min-h-screen shadow-2xl relative flex flex-col font-sans text-morandi-text">
+    
+    <!-- 頂部標題列 -->
+    <header class="bg-morandi-card px-6 py-4 shadow-sm z-10 sticky top-0 flex justify-between items-center">
+        <h1 class="text-xl font-bold text-morandi-green">{{ tabTitles[currentTab] }}</h1>
+        <i class="fas fa-plane-departure text-morandi-sand text-xl"></i>
+    </header>
+
+    <!-- 主要內容區 (可滾動) -->
+    <main class="flex-1 overflow-y-auto p-4 pb-24">
+        
+        <!-- 1. 行程表 -->
+        <div v-show="currentTab === 'itinerary'" class="space-y-4">
+            <div class="mb-2 text-sm text-morandi-blue flex items-center gap-2 px-1">
+                <i class="fas fa-calendar-day"></i> 第一天 | 台北出發
+            </div>
+            
+            <div v-for="item in itinerary" :key="item.id" class="bg-morandi-card rounded-2xl p-4 shadow-sm border border-morandi-border flex gap-4">
+                <div class="flex flex-col items-center justify-center border-r border-morandi-border pr-4 min-w-[70px]">
+                    <span class="text-lg font-bold text-morandi-green">{{ item.time }}</span>
+                    <!-- 模擬天氣資訊 -->
+                    <span class="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                        <i :class="item.weatherIcon"></i> {{ item.temp }}
+                    </span>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg mb-1">{{ item.title }}</h3>
+                    <p class="text-sm text-gray-500 mb-3">{{ item.desc }}</p>
+                    <!-- Google Maps 導航按鈕 -->
+                    <a :href="'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(item.location)" target="_blank" 
+                       class="inline-block bg-morandi-green text-white text-xs px-3 py-1.5 rounded-full hover:bg-opacity-90 transition">
+                        <i class="fas fa-location-arrow mr-1"></i> 導航至此
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 地圖與地點連結解析 -->
+        <div v-show="currentTab === 'map'" class="space-y-6">
+            <!-- 輸入區 -->
+            <div class="bg-morandi-card rounded-2xl p-5 shadow-sm border border-morandi-border">
+                <h3 class="font-bold mb-3 flex items-center gap-2"><i class="fas fa-link text-morandi-blue"></i> 自動解析地點連結</h3>
+                <div class="flex gap-2">
+                    <input type="text" v-model="linkInput" placeholder="貼上 Google Maps 或遊記連結..." 
+                           class="flex-1 bg-morandi-bg border border-morandi-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-morandi-blue">
+                    <button @click="parseLink" class="bg-morandi-blue text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-opacity-90 transition">
+                        擷取
+                    </button>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">提示：系統會自動抓取地點並將相同的地點評價合併。</p>
+            </div>
+
+            <!-- 地點卡片列表 -->
+            <div v-for="place in savedPlaces" :key="place.name" class="bg-morandi-card rounded-2xl p-4 shadow-sm border border-morandi-border">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="font-bold text-lg text-morandi-text">{{ place.name }}</h3>
+                    <span class="bg-morandi-sand text-white text-xs px-2 py-1 rounded-lg">共 {{ place.reviews.length }} 則筆記</span>
+                </div>
+                
+                <div class="space-y-2 mt-3">
+                    <div v-for="(review, idx) in place.reviews" :key="idx" class="bg-morandi-bg p-3 rounded-xl text-sm">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-morandi-rose font-bold"><i class="fas fa-star text-xs"></i> {{ review.rating }} 星</span>
+                        </div>
+                        <p class="text-gray-600">{{ review.text }}</p>
+                        <a v-if="review.link" :href="review.link" target="_blank" class="text-morandi-blue text-xs mt-1 inline-block">來源連結 <i class="fas fa-external-link-alt"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 記帳功能 -->
+        <div v-show="currentTab === 'expense'" class="space-y-6">
+            <!-- 總花費看板 -->
+            <div class="bg-gradient-to-r from-morandi-sand to-morandi-rose rounded-3xl p-6 text-white shadow-md relative overflow-hidden">
+                <i class="fas fa-wallet absolute -right-4 -bottom-4 text-7xl opacity-20"></i>
+                <p class="text-sm opacity-90 mb-1">旅程總支出</p>
+                <h2 class="text-4xl font-bold font-mono">$ {{ totalExpense.toLocaleString() }}</h2>
+            </div>
+
+            <!-- 記帳表單 -->
+            <div class="bg-morandi-card rounded-2xl p-5 shadow-sm border border-morandi-border space-y-3">
+                <div class="flex gap-3">
+                    <input type="text" v-model="newExpense.item" placeholder="消費項目 (例如: 晚餐)" class="flex-1 bg-morandi-bg border border-morandi-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-morandi-sand">
+                    <input type="number" v-model="newExpense.amount" placeholder="金額" class="w-24 bg-morandi-bg border border-morandi-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-morandi-sand">
+                </div>
+                <div class="flex gap-3">
+                    <!-- 下拉式選單選擇付款方式 -->
+                    <select v-model="newExpense.method" class="flex-1 bg-morandi-bg border border-morandi-border rounded-xl px-4 py-2 text-sm focus:outline-none text-morandi-text">
+                        <option value="現金">現金 (Cash)</option>
+                        <option value="信用卡">信用卡 (Credit Card)</option>
+                        <option value="行動支付">行動支付 (Mobile Pay)</option>
+                    </select>
+                    <button @click="addExpense" class="bg-morandi-sand text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-opacity-90 transition">
+                        記一筆
+                    </button>
+                </div>
+            </div>
+
+            <!-- 支出清單 -->
+            <div class="space-y-3">
+                <div v-for="exp in expenses" :key="exp.id" class="bg-morandi-card p-4 rounded-xl flex justify-between items-center shadow-sm border border-morandi-border">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-morandi-bg flex items-center justify-center text-morandi-text">
+                            <i v-if="exp.method === '現金'" class="fas fa-coins text-morandi-sand"></i>
+                            <i v-else-if="exp.method === '信用卡'" class="fas fa-credit-card text-morandi-blue"></i>
+                            <i v-else class="fas fa-mobile-alt text-morandi-green"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-sm">{{ exp.item }}</p>
+                            <p class="text-xs text-gray-400">{{ exp.method }}</p>
+                        </div>
+                    </div>
+                    <p class="font-bold font-mono text-morandi-text">-$ {{ exp.amount }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. 購物清單 -->
+        <div v-show="currentTab === 'shopping'" class="space-y-4">
+            <div class="flex gap-2 mb-6">
+                <input type="text" v-model="newShoppingItem" @keyup.enter="addShoppingItem" placeholder="想買些什麼帶回家？" 
+                       class="flex-1 bg-morandi-card shadow-sm border border-morandi-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-morandi-rose">
+                <button @click="addShoppingItem" class="bg-morandi-rose text-white w-12 rounded-xl flex items-center justify-center hover:bg-opacity-90 transition">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+
+            <div v-for="item in shoppingList" :key="item.id" 
+                 class="bg-morandi-card p-4 rounded-2xl flex items-center gap-3 shadow-sm border transition-all"
+                 :class="item.done ? 'border-transparent opacity-60' : 'border-morandi-border'">
+                
+                <!-- 自訂 Checkbox 樣式 -->
+                <button @click="item.done = !item.done" 
+                        class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors"
+                        :class="item.done ? 'border-morandi-green bg-morandi-green text-white' : 'border-morandi-green text-transparent'">
+                    <i class="fas fa-check text-xs"></i>
+                </button>
+                
+                <span class="flex-1 font-medium text-sm transition-all" :class="item.done ? 'line-through text-gray-400' : 'text-morandi-text'">
+                    {{ item.name }}
+                </span>
+                
+                <button @click="removeShoppingItem(item.id)" class="text-gray-300 hover:text-red-400 transition-colors">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 底部導覽列 -->
+    <nav class="bg-morandi-card border-t border-morandi-border absolute bottom-0 w-full flex justify-around py-3 px-2 pb-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+        <button @click="currentTab = 'itinerary'" class="flex flex-col items-center gap-1 w-1/4 transition-colors" :class="currentTab === 'itinerary' ? 'text-morandi-green' : 'text-gray-400'">
+            <i class="fas fa-map-signs text-xl mb-1"></i>
+            <span class="text-[10px] font-bold">行程</span>
+        </button>
+        <button @click="currentTab = 'map'" class="flex flex-col items-center gap-1 w-1/4 transition-colors" :class="currentTab === 'map' ? 'text-morandi-blue' : 'text-gray-400'">
+            <i class="fas fa-map-marker-alt text-xl mb-1"></i>
+            <span class="text-[10px] font-bold">地點</span>
+        </button>
+        <button @click="currentTab = 'expense'" class="flex flex-col items-center gap-1 w-1/4 transition-colors" :class="currentTab === 'expense' ? 'text-morandi-sand' : 'text-gray-400'">
+            <i class="fas fa-file-invoice-dollar text-xl mb-1"></i>
+            <span class="text-[10px] font-bold">記帳</span>
+        </button>
+        <button @click="currentTab = 'shopping'" class="flex flex-col items-center gap-1 w-1/4 transition-colors" :class="currentTab === 'shopping' ? 'text-morandi-rose' : 'text-gray-400'">
+            <i class="fas fa-shopping-bag text-xl mb-1"></i>
+            <span class="text-[10px] font-bold">購物</span>
+        </button>
+    </nav>
+
+</div>
+
+<script>
+    const { createApp, ref, computed } = Vue;
+
+    createApp({
+        setup() {
+            // 控制目前顯示的標籤頁
+            const currentTab = ref('itinerary');
+            
+            // 頂部標題對應
+            const tabTitles = {
+                itinerary: '我的行程表',
+                map: '地點收集與地圖',
+                expense: '旅費記帳本',
+                shopping: '必買購物清單'
+            };
+
+            // 1. 行程表資料 (包含天氣與導航目的地)
+            const itinerary = ref([
+                { id: 1, time: '09:00', title: '抵達機場', desc: '辦理登機手續', location: '桃園國際機場', temp: '26°C', weatherIcon: 'fas fa-cloud-sun text-yellow-500' },
+                { id: 2, time: '13:00', title: '飯店 Check-in', desc: '放行李，稍作休息', location: '新宿車站', temp: '22°C', weatherIcon: 'fas fa-sun text-yellow-500' },
+                { id: 3, time: '15:30', title: '熱門景點逛街', desc: '買伴手禮、拍美照', location: '淺草寺', temp: '20°C', weatherIcon: 'fas fa-cloud text-gray-400' }
+            ]);
+
+            // 2. 地點連結解析功能
+            const linkInput = ref('');
+            const savedPlaces = ref([
+                {
+                    name: '淺草寺',
+                    reviews: [
+                        { rating: 5, text: '雷門超好拍，附近小吃很多！', link: '' }
+                    ]
+                }
+            ]);
+
+            const parseLink = () => {
+                if (!linkInput.value.trim()) return;
+                
+                // 模擬解析邏輯：隨機抓一個假地點名稱，或者直接叫「新發現的地點」
+                // 實務上這裡可以彈出視窗讓使用者確認名稱
+                let mockPlaceName = "新發現的地點";
+                if(linkInput.value.includes('taipei')) mockPlaceName = "台北101";
+                if(linkInput.value.includes('kyoto')) mockPlaceName = "清水寺";
+
+                const placeName = prompt("我們從連結解析出以下地點，請確認名稱 (同名稱會合併評價)：", mockPlaceName);
+                
+                if (placeName) {
+                    const newReview = {
+                        rating: Math.floor(Math.random() * 2) + 4, // 模擬 4~5 星
+                        text: '從連結自動擷取到的評價內容摘要...',
+                        link: linkInput.value
+                    };
+
+                    const existingPlace = savedPlaces.value.find(p => p.name === placeName);
+                    if (existingPlace) {
+                        existingPlace.reviews.push(newReview);
+                    } else {
+                        savedPlaces.value.push({
+                            name: placeName,
+                            reviews: [newReview]
+                        });
+                    }
+                    linkInput.value = '';
+                }
+            };
+
+            // 3. 記帳功能
+            const expenses = ref([
+                { id: 1, item: '機場快線車票', amount: 350, method: '信用卡' },
+                { id: 2, item: '便利商店買水', amount: 45, method: '現金' }
+            ]);
+            const newExpense = ref({ item: '', amount: '', method: '現金' });
+
+            const totalExpense = computed(() => {
+                return expenses.value.reduce((sum, exp) => sum + Number(exp.amount), 0);
+            });
+
+            const addExpense = () => {
+                if (!newExpense.value.item || !newExpense.value.amount) return;
+                expenses.value.unshift({
+                    id: Date.now(),
+                    item: newExpense.value.item,
+                    amount: newExpense.value.amount,
+                    method: newExpense.value.method
+                });
+                newExpense.value.item = '';
+                newExpense.value.amount = '';
+                newExpense.value.method = '現金'; // 預設回現金
+            };
+
+            // 4. 購物清單
+            const shoppingList = ref([
+                { id: 1, name: '東京香蕉蛋糕 x2', done: false },
+                { id: 2, name: '感冒藥、眼藥水', done: true }
+            ]);
+            const newShoppingItem = ref('');
+
+            const addShoppingItem = () => {
+                if (!newShoppingItem.value.trim()) return;
+                shoppingList.value.unshift({
+                    id: Date.now(),
+                    name: newShoppingItem.value,
+                    done: false
+                });
+                newShoppingItem.value = '';
+            };
+
+            const removeShoppingItem = (id) => {
+                shoppingList.value = shoppingList.value.filter(item => item.id !== id);
+            };
+
+            return {
+                currentTab,
+                tabTitles,
+                itinerary,
+                linkInput,
+                savedPlaces,
+                parseLink,
+                expenses,
+                newExpense,
+                totalExpense,
+                addExpense,
+                shoppingList,
+                newShoppingItem,
+                addShoppingItem,
+                removeShoppingItem
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
+
+```
