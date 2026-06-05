@@ -901,7 +901,7 @@
                     this.saveToStorage();
                     this.refreshMapMarkers();
                 },
-                async saveLocation() {
+                saveLocation() {
                     if (!this.newLocation.name || !this.newLocation.address) {
                         this.showToastMessage('請填寫地點名稱和地址');
                         return;
@@ -913,9 +913,10 @@
                         icon: this.newLocation.icon || 'fas fa-map-marker-alt',
                         source: '收藏'
                     };
-                    if (this.editingLocationIndex !== null) {
-                        this.savedLocations[this.editingLocationIndex] = {
-                            ...this.savedLocations[this.editingLocationIndex],
+                    const editingIndex = this.editingLocationIndex;
+                    if (editingIndex !== null) {
+                        this.savedLocations[editingIndex] = {
+                            ...this.savedLocations[editingIndex],
                             ...location,
                             lat: undefined,
                             lng: undefined
@@ -925,14 +926,18 @@
                         this.savedLocations.push(location);
                         this.showToastMessage('地點已新增');
                     }
+                    const targetLocation = editingIndex !== null
+                        ? this.savedLocations[editingIndex]
+                        : this.savedLocations[this.savedLocations.length - 1];
                     this.closeLocationModal();
                     this.saveToStorage();
-                    const targetLocation = this.editingLocationIndex !== null
-                        ? this.savedLocations[this.editingLocationIndex]
-                        : this.savedLocations[this.savedLocations.length - 1];
-                    await this.ensureCoordinatesForLocation(targetLocation);
                     this.refreshMapMarkers();
-                    this.focusLocationOnMap(targetLocation);
+                    this.ensureCoordinatesForLocation(targetLocation).then(() => {
+                        this.refreshMapMarkers();
+                        if (this.activeTab === 'map') {
+                            this.focusLocationOnMap(targetLocation);
+                        }
+                    });
                 },
                 getCategoryBg(category) {
                     return 'bg-morandy-200 text-morandy-700';
@@ -1145,14 +1150,15 @@
                     this.closeLinkModal();
                     this.saveToStorage();
                     if (linkData.location) {
-                        await this.ensureCoordinatesForLocation({
+                        this.ensureCoordinatesForLocation({
                             id: `link-map-${linkData.id}`,
                             name: linkData.title,
                             address: linkData.location,
                             icon: 'fas fa-link',
                             source: '連結'
+                        }).then(() => {
+                            this.refreshMapMarkers();
                         });
-                        this.refreshMapMarkers();
                     }
                 },
                 editLink(index) {
@@ -1168,7 +1174,7 @@
                     this.savedLinks[index].review = review;
                     this.saveToStorage();
                 },
-                async createLocationFromLink(link) {
+                createLocationFromLink(link) {
                     if (!link.location) return;
                     const alreadyExists = this.savedLocations.some(location => location.address === link.location && location.name === link.title);
                     if (alreadyExists) {
@@ -1184,8 +1190,9 @@
                     };
                     this.savedLocations.push(location);
                     this.saveToStorage();
-                    await this.ensureCoordinatesForLocation(location);
-                    this.refreshMapMarkers();
+                    this.ensureCoordinatesForLocation(location).then(() => {
+                        this.refreshMapMarkers();
+                    });
                     this.showToastMessage('已加入地圖');
                 },
                 removeLink(index) {
@@ -1404,6 +1411,7 @@
                         });
 
                         database.ref('travelApp').on('value', (snapshot) => {
+                            if (this.isSyncing) return;
                             const data = snapshot.val();
                             if (!data) return;
                             this.hydrateData(data);
