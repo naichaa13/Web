@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>旅行趣 - 旅遊小幫手</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        morandy: {
+                            50: '#f7f6f5',
+                            100: '#ebe7e4',
+                            200: '#d5cec8',
+                            300: '#b8ada3',
+                            400: '#9a8b7d',
+                            500: '#857868',
+                            600: '#6f6157',
+                            700: '#5a5049',
+                            800: '#4a423c',
+                            900: '#3d3632',
+                        }
+                    },
+                    fontFamily: {
+                        'noto': ['Noto Sans TC', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #f7f6f5 0%, #ebe7e4 100%);
+            min-height: 100vh;
+        }
+        .card-shadow {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        .bottom-nav {
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+        }
+        .slide-up-enter-active,
+        .slide-up-leave-active {
+            transition: all 0.3s ease;
+        }
+        .slide-up-enter-from,
+        .slide-up-leave-to {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #b8ada3;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-morandy-50">
+    <div id="app" class="max-w-md mx-auto bg-morandy-50 min-h-screen pb-20">
+        <!-- Header -->
+        <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 px-5 py-4 card-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-xl font-bold text-morandy-800">旅行趣</h1>
+                    <p class="text-xs text-morandy-500">{{ currentDate }}</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button @click="showWeather = !showWeather" class="w-10 h-10 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600">
+                        <i class="fas fa-cloud-sun text-lg"></i>
+                    </button>
+                    <div class="w-10 h-10 rounded-full bg-morandy-300 flex items-center justify-center text-white font-medium">
+                        {{ userInitial }}
+                    </div>
+                </div>
+            </div>
+            <!-- Weather Card -->
+            <transition name="slide-up">
+                <div v-if="showWeather" class="mt-4 p-4 bg-gradient-to-r from-morandy-100 to-morandy-200 rounded-2xl">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-cloud-sun text-3xl text-morandy-600"></i>
+                            <div>
+                                <p class="text-2xl font-bold text-morandy-800">24°C</p>
+                                <p class="text-sm text-morandy-600">台北市</p>
+                            </div>
+                        </div>
+                        <div class="text-right text-sm text-morandy-700">
+                            <p>晴時多雲</p>
+                            <p>降雨率 10%</p>
+                        </div>
+                    </div>
+                </div>
+            </transition>
+        </header>
+
+        <!-- Main Content -->
+        <main class="px-5 py-4">
+            <!-- 行程表 Tab -->
+            <div v-show="activeTab === 'itinerary'">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-morandy-800">行程表</h2>
+                    <button @click="showAddTrip = true" class="px-4 py-2 bg-morandy-600 text-white rounded-xl text-sm font-medium hover:bg-morandy-700 transition-colors">
+                        <i class="fas fa-plus mr-1"></i>新增行程
+                    </button>
+                </div>
+
+                <!-- Trip Cards -->
+                <div v-if="trips.length === 0" class="text-center py-12">
+                    <div class="w-20 h-20 mx-auto mb-4 bg-morandy-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-plane text-3xl text-morandy-400"></i>
+                    </div>
+                    <p class="text-morandy-500">還沒有行程，開始規劃你的旅行吧！</p>
+                </div>
+
+                <div v-for="(trip, index) in trips" :key="index" class="bg-white rounded-2xl p-4 mb-4 card-shadow">
+                    <div class="flex items-start justify-between mb-3">
+                        <div>
+                            <h3 class="font-semibold text-morandy-800">{{ trip.name }}</h3>
+                            <p class="text-sm text-morandy-500">{{ trip.date }}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button @click="editTrip(index)" class="w-8 h-8 rounded-lg bg-morandy-100 flex items-center justify-center text-morandy-600">
+                                <i class="fas fa-edit text-sm"></i>
+                            </button>
+                            <button @click="deleteTrip(index)" class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-400">
+                                <i class="fas fa-trash text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Schedule Items -->
+                    <div v-for="(item, itemIndex) in trip.items" :key="itemIndex" class="flex gap-3 py-2 border-b border-morandy-100 last:border-0">
+                        <div class="flex flex-col items-center">
+                            <div class="w-3 h-3 rounded-full bg-morandy-400"></div>
+                            <div class="w-0.5 h-8 bg-morandy-200"></div>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium text-morandy-800 text-sm">{{ item.time }}</p>
+                            <p class="text-morandy-600 text-sm">{{ item.activity }}</p>
+                            <p v-if="item.location" class="text-xs text-morandy-400 mt-1">
+                                <i class="fas fa-map-marker-alt mr-1"></i>{{ item.location }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <button @click="addScheduleItem(index)" class="w-full mt-3 py-2 text-sm text-morandy-500 hover:text-morandy-700 transition-colors">
+                        <i class="fas fa-plus mr-1"></i>新增項目
+                    </button>
+                </div>
+            </div>
+
+            <!-- 地圖 Tab -->
+            <div v-show="activeTab === 'map'">
+                <h2 class="text-lg font-semibold text-morandy-800 mb-4">地圖</h2>
+
+                <div class="bg-white rounded-2xl overflow-hidden card-shadow">
+                    <div class="h-64 bg-morandy-100 flex items-center justify-center relative">
+                        <div class="text-center">
+                            <i class="fas fa-map-marked-alt text-5xl text-morandy-400 mb-2"></i>
+                            <p class="text-morandy-600">互動式地圖</p>
+                        </div>
+                        <!-- Mock Map Markers -->
+                        <div v-for="(marker, i) in mapMarkers" :key="i" class="absolute w-8 h-8 bg-morandy-600 rounded-full flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform" :style="{ top: marker.top, left: marker.left }">
+                            <i :class="marker.icon"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Saved Locations -->
+                <h3 class="font-semibold text-morandy-800 mt-6 mb-3">已儲存的地點</h3>
+                <div v-for="(location, index) in savedLocations" :key="index" class="bg-white rounded-2xl p-4 mb-3 card-shadow flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-morandy-100 flex items-center justify-center text-morandy-600">
+                        <i :class="location.icon || 'fas fa-map-marker-alt'"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-medium text-morandy-800">{{ location.name }}</p>
+                        <p class="text-sm text-morandy-500">{{ location.address }}</p>
+                    </div>
+                    <a :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(location.address)" target="_blank" class="w-10 h-10 rounded-full bg-morandy-600 text-white flex items-center justify-center hover:bg-morandy-700 transition-colors">
+                        <i class="fas fa-directions"></i>
+                    </a>
+                </div>
+
+                <!-- Add Location -->
+                <button @click="showAddLocation = true" class="w-full py-3 border-2 border-dashed border-morandy-300 rounded-2xl text-morandy-500 hover:border-morandy-500 hover:text-morandy-700 transition-colors">
+                    <i class="fas fa-plus mr-2"></i>新增地點
+                </button>
+            </div>
+
+            <!-- 記帳 Tab -->
+            <div v-show="activeTab === 'expense'">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-morandy-800">記帳本</h2>
+                    <div class="text-right">
+                        <p class="text-sm text-morandy-500">總支出</p>
+                        <p class="text-xl font-bold text-morandy-800">${{ totalExpense.toLocaleString() }}</p>
+                    </div>
+                </div>
+
+                <!-- Expense Categories -->
+                <div class="flex gap-2 mb-4 overflow-x-auto pb-2">
+                    <button v-for="cat in expenseCategories" :key="cat.id" @click="selectedCategory = cat.id" :class="['px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors', selectedCategory === cat.id ? 'bg-morandy-600 text-white' : 'bg-white text-morandy-600 card-shadow']">
+                        <i :class="cat.icon + ' mr-1'"></i>{{ cat.name }}
+                    </button>
+                </div>
+
+                <!-- Expense List -->
+                <div v-if="filteredExpenses.length === 0" class="text-center py-12">
+                    <div class="w-20 h-20 mx-auto mb-4 bg-morandy-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-receipt text-3xl text-morandy-400"></i>
+                    </div>
+                    <p class="text-morandy-500">還沒有記錄</p>
+                </div>
+
+                <div v-for="(expense, index) in filteredExpenses" :key="index" class="bg-white rounded-2xl p-4 mb-3 card-shadow">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl flex items-center justify-center" :class="getCategoryBg(expense.category)">
+                            <i :class="getCategoryIcon(expense.category) + ' text-lg'"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium text-morandy-800">{{ expense.title }}</p>
+                            <p class="text-sm text-morandy-500">
+                                {{ expense.paymentMethod }} · {{ expense.date }}
+                            </p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold text-morandy-800">-${{ expense.amount }}</p>
+                            <p class="text-xs text-morandy-400">{{ getCategoryName(expense.category) }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button @click="showAddExpense = true" class="fixed bottom-24 right-5 w-14 h-14 bg-morandy-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-morandy-700 transition-colors">
+                    <i class="fas fa-plus text-xl"></i>
+                </button>
+            </div>
+
+            <!-- 購物清單 Tab -->
+            <div v-show="activeTab === 'shopping'">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-morandy-800">購物清單</h2>
+                    <span class="px-3 py-1 bg-morandy-100 rounded-full text-sm text-morandy-600">
+                        {{ completedItems }}/{{ shoppingList.length }}
+                    </span>
+                </div>
+
+                <!-- Add Item -->
+                <div class="bg-white rounded-2xl p-4 mb-4 card-shadow">
+                    <div class="flex gap-2">
+                        <input v-model="newShoppingItem" @keyup.enter="addShoppingItem" type="text" placeholder="新增物品..." class="flex-1 px-4 py-2 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                        <input v-model="shoppingQuantity" type="number" min="1" placeholder="數量" class="w-16 px-3 py-2 bg-morandy-50 rounded-xl text-morandy-800 text-center focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                        <button @click="addShoppingItem" class="px-4 py-2 bg-morandy-600 text-white rounded-xl hover:bg-morandy-700 transition-colors">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Shopping List -->
+                <div v-if="shoppingList.length === 0" class="text-center py-12">
+                    <div class="w-20 h-20 mx-auto mb-4 bg-morandy-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-shopping-cart text-3xl text-morandy-400"></i>
+                    </div>
+                    <p class="text-morandy-500">購物清單是空的</p>
+                </div>
+
+                <div v-for="(item, index) in shoppingList" :key="index" :class="['bg-white rounded-2xl p-4 mb-3 card-shadow flex items-center gap-3 transition-all', item.completed ? 'opacity-60' : '']">
+                    <button @click="toggleShoppingItem(index)" class="w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors" :class="item.completed ? 'bg-morandy-600 border-morandy-600 text-white' : 'border-morandy-300'">
+                        <i :class="item.completed ? 'fas fa-check' : ''"></i>
+                    </button>
+                    <div class="flex-1">
+                        <p :class="['font-medium transition-all', item.completed ? 'line-through text-morandy-400' : 'text-morandy-800']">{{ item.name }}</p>
+                    </div>
+                    <span class="px-2 py-1 bg-morandy-100 rounded-lg text-sm text-morandy-600">x{{ item.quantity }}</span>
+                    <button @click="removeShoppingItem(index)" class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-400 hover:bg-red-100 transition-colors">
+                        <i class="fas fa-times text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 連結 Tab -->
+            <div v-show="activeTab === 'links'">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-morandy-800">旅遊連結</h2>
+                    <button @click="showAddLink = true" class="px-4 py-2 bg-morandy-600 text-white rounded-xl text-sm font-medium hover:bg-morandy-700 transition-colors">
+                        <i class="fas fa-link mr-1"></i>新增連結
+                    </button>
+                </div>
+
+                <div v-if="savedLinks.length === 0" class="text-center py-12">
+                    <div class="w-20 h-20 mx-auto mb-4 bg-morandy-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-link text-3xl text-morandy-400"></i>
+                    </div>
+                    <p class="text-morandy-500">還沒有儲存的連結</p>
+                    <p class="text-sm text-morandy-400 mt-1">加入旅遊相關連結，自動擷取資訊</p>
+                </div>
+
+                <div v-for="(link, index) in savedLinks" :key="index" class="bg-white rounded-2xl p-4 mb-3 card-shadow">
+                    <div class="flex items-start gap-3 mb-3">
+                        <div class="w-12 h-12 rounded-xl bg-morandy-100 flex items-center justify-center text-morandy-600">
+                            <i class="fas fa-globe"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-medium text-morandy-800">{{ link.title }}</h3>
+                            <p class="text-sm text-morandy-500 truncate">{{ link.url }}</p>
+                        </div>
+                        <a :href="link.url" target="_blank" class="px-3 py-1 bg-morandy-100 text-morandy-600 rounded-lg text-sm hover:bg-morandy-200 transition-colors">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </div>
+                    <div v-if="link.description" class="p-3 bg-morandy-50 rounded-xl mb-3">
+                        <p class="text-sm text-morandy-600">{{ link.description }}</p>
+                    </div>
+                    <!-- Rating -->
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-sm text-morandy-600">評價：</span>
+                        <div class="flex gap-1">
+                            <button v-for="star in 5" :key="star" @click="updateLinkRating(index, star)" class="text-lg transition-colors" :class="star <= link.rating ? 'text-yellow-400' : 'text-morandy-300'">
+                                <i :class="star <= link.rating ? 'fas' : 'far', 'fa-star'"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Location Tag -->
+                    <div v-if="link.location" class="flex items-center gap-2 text-sm text-morandy-500">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>{{ link.location }}</span>
+                    </div>
+                    <button @click="removeLink(index)" class="mt-3 text-sm text-red-400 hover:text-red-500 transition-colors">
+                        <i class="fas fa-trash mr-1"></i>刪除
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="fixed bottom-0 left-0 right-0 bg-white bottom-nav z-50">
+            <div class="max-w-md mx-auto flex justify-around py-2">
+                <button v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id" :class="['flex flex-col items-center py-2 px-4 transition-colors', activeTab === tab.id ? 'text-morandy-600' : 'text-morandy-400']">
+                    <i :class="tab.icon + ' text-xl'"></i>
+                    <span class="text-xs mt-1">{{ tab.name }}</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Modal: Add Trip -->
+        <div v-if="showAddTrip" class="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+            <div class="bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-morandy-800">新增行程</h3>
+                    <button @click="showAddTrip = false" class="w-8 h-8 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">行程名稱</label>
+                        <input v-model="newTrip.name" type="text" placeholder="例如：東京之旅" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">日期</label>
+                        <input v-model="newTrip.date" type="date" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                    </div>
+                    <button @click="saveTrip" class="w-full py-3 bg-morandy-600 text-white rounded-xl font-medium hover:bg-morandy-700 transition-colors">
+                        儲存行程
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Add Schedule Item -->
+        <div v-if="showAddSchedule" class="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+            <div class="bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-morandy-800">新增行程項目</h3>
+                    <button @click="showAddSchedule = false" class="w-8 h-8 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">時間</label>
+                        <input v-model="newSchedule.time" type="time" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">活動</label>
+                        <input v-model="newSchedule.activity" type="text" placeholder="例如：參觀淺草寺" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">地點（選填）</label>
+                        <input v-model="newSchedule.location" type="text" placeholder="例如：東京淺草" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                    </div>
+                    <button @click="saveScheduleItem" class="w-full py-3 bg-morandy-600 text-white rounded-xl font-medium hover:bg-morandy-700 transition-colors">
+                        儲存
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Add Location -->
+        <div v-if="showAddLocation" class="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+            <div class="bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-morandy-800">新增地點</h3>
+                    <button @click="showAddLocation = false" class="w-8 h-8 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">地點名稱</label>
+                        <input v-model="newLocation.name" type="text" placeholder="例如：東京迪士尼樂園" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">地址</label>
+                        <input v-model="newLocation.address" type="text" placeholder="例如：日本千葉縣浦安市舞濱1-1" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">圖示</label>
+                        <div class="flex gap-2 flex-wrap">
+                            <button v-for="icon in locationIcons" :key="icon" @click="newLocation.icon = icon" :class="['w-10 h-10 rounded-lg flex items-center justify-center transition-colors', newLocation.icon === icon ? 'bg-morandy-600 text-white' : 'bg-morandy-100 text-morandy-600']">
+                                <i :class="icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button @click="saveLocation" class="w-full py-3 bg-morandy-600 text-white rounded-xl font-medium hover:bg-morandy-700 transition-colors">
+                        儲存地點
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Add Expense -->
+        <div v-if="showAddExpense" class="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+            <div class="bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-morandy-800">新增支出</h3>
+                    <button @click="showAddExpense = false" class="w-8 h-8 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">項目名稱</label>
+                        <input v-model="newExpense.title" type="text" placeholder="例如：午餐" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">金額</label>
+                        <input v-model="newExpense.amount" type="number" placeholder="0" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">類別</label>
+                        <select v-model="newExpense.category" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                            <option v-for="cat in expenseCategories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">付款方式</label>
+                        <select v-model="newExpense.paymentMethod" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                            <option value="現金">現金</option>
+                            <option value="信用卡">信用卡</option>
+                            <option value="電子支付">電子支付</option>
+                            <option value="金融卡">金融卡</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">日期</label>
+                        <input v-model="newExpense.date" type="date" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                    </div>
+                    <button @click="saveExpense" class="w-full py-3 bg-morandy-600 text-white rounded-xl font-medium hover:bg-morandy-700 transition-colors">
+                        儲存支出
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Add Link -->
+        <div v-if="showAddLink" class="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+            <div class="bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-morandy-800">新增連結</h3>
+                    <button @click="showAddLink = false" class="w-8 h-8 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">標題</label>
+                        <input v-model="newLink.title" type="text" placeholder="例如：東京迪士尼官方網站" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">連結網址</label>
+                        <input v-model="newLink.url" @blur="fetchLinkInfo" type="url" placeholder="https://..." class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">描述（選填）</label>
+                        <textarea v-model="newLink.description" rows="3" placeholder="自動擷取網頁內容..." class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300 resize-none"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">地點（選填）</label>
+                        <input v-model="newLink.location" type="text" placeholder="例如：日本東京" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                    </div>
+                    <button @click="saveLink" class="w-full py-3 bg-morandy-600 text-white rounded-xl font-medium hover:bg-morandy-700 transition-colors">
+                        儲存連結
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notification -->
+        <transition name="slide-up">
+            <div v-if="showToast" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-morandy-800 text-white px-6 py-3 rounded-xl shadow-lg z-50">
+                {{ toastMessage }}
+            </div>
+        </transition>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    activeTab: 'itinerary',
+                    showWeather: false,
+                    userInitial: 'U',
+
+                    // Tabs
+                    tabs: [
+                        { id: 'itinerary', name: '行程', icon: 'fas fa-calendar-alt' },
+                        { id: 'map', name: '地圖', icon: 'fas fa-map-marked-alt' },
+                        { id: 'expense', name: '記帳', icon: 'fas fa-wallet' },
+                        { id: 'shopping', name: '購物', icon: 'fas fa-shopping-bag' },
+                        { id: 'links', name: '連結', icon: 'fas fa-link' }
+                    ],
+
+                    // Weather
+                    currentDate: new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }),
+
+                    // Trips
+                    trips: [],
+                    showAddTrip: false,
+                    newTrip: { name: '', date: '' },
+                    showAddSchedule: false,
+                    currentTripIndex: null,
+                    newSchedule: { time: '', activity: '', location: '' },
+
+                    // Map
+                    mapMarkers: [
+                        { top: '30%', left: '40%', icon: 'fas fa-utensils' },
+                        { top: '45%', left: '55%', icon: 'fas fa-camera' },
+                        { top: '60%', left: '35%', icon: 'fas fa-hotel' }
+                    ],
+                    savedLocations: [],
+                    showAddLocation: false,
+                    locationIcons: ['fas fa-utensils', 'fas fa-camera', 'fas fa-hotel', 'fas fa-store', 'fas fa-train', 'fas fa-tree', 'fas fa-landmark', 'fas fa-shopping-bag'],
+                    newLocation: { name: '', address: '', icon: 'fas fa-map-marker-alt' },
+
+                    // Expense
+                    expenseCategories: [
+                        { id: 'all', name: '全部', icon: 'fas fa-list' },
+                        { id: 'food', name: '餐飲', icon: 'fas fa-utensils' },
+                        { id: 'transport', name: '交通', icon: 'fas fa-car' },
+                        { id: 'hotel', name: '住宿', icon: 'fas fa-bed' },
+                        { id: 'shopping', name: '購物', icon: 'fas fa-shopping-bag' },
+                        { id: 'ticket', name: '門票', icon: 'fas fa-ticket-alt' },
+                        { id: 'other', name: '其他', icon: 'fas fa-ellipsis-h' }
+                    ],
+                    expenses: [],
+                    selectedCategory: 'all',
+                    showAddExpense: false,
+                    newExpense: { title: '', amount: '', category: 'food', paymentMethod: '現金', date: new Date().toISOString().split('T')[0] },
+
+                    // Shopping
+                    shoppingList: [],
+                    newShoppingItem: '',
+                    shoppingQuantity: 1,
+
+                    // Links
+                    savedLinks: [],
+                    showAddLink: false,
+                    newLink: { title: '', url: '', description: '', location: '', rating: 0 },
+
+                    // Toast
+                    showToast: false,
+                    toastMessage: ''
+                };
+            },
+            computed: {
+                totalExpense() {
+                    return this.expenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+                },
+                filteredExpenses() {
+                    if (this.selectedCategory === 'all') return this.expenses;
+                    return this.expenses.filter(e => e.category === this.selectedCategory);
+                },
+                completedItems() {
+                    return this.shoppingList.filter(item => item.completed).length;
+                }
+            },
+            methods: {
+                // Toast
+                showToastMessage(msg) {
+                    this.toastMessage = msg;
+                    this.showToast = true;
+                    setTimeout(() => this.showToast = false, 2000);
+                },
+
+                // Trips
+                saveTrip() {
+                    if (!this.newTrip.name || !this.newTrip.date) {
+                        this.showToastMessage('請填寫行程名稱和日期');
+                        return;
+                    }
+                    this.trips.push({ ...this.newTrip, items: [] });
+                    this.newTrip = { name: '', date: '' };
+                    this.showAddTrip = false;
+                    this.showToastMessage('行程已新增');
+                    this.saveToStorage();
+                },
+                editTrip(index) {
+                    this.newTrip = { ...this.trips[index] };
+                    this.trips.splice(index, 1);
+                    this.showAddTrip = true;
+                },
+                deleteTrip(index) {
+                    this.trips.splice(index, 1);
+                    this.showToastMessage('行程已刪除');
+                    this.saveToStorage();
+                },
+                addScheduleItem(tripIndex) {
+                    this.currentTripIndex = tripIndex;
+                    this.newSchedule = { time: '', activity: '', location: '' };
+                    this.showAddSchedule = true;
+                },
+                saveScheduleItem() {
+                    if (!this.newSchedule.time || !this.newSchedule.activity) {
+                        this.showToastMessage('請填寫時間和活動');
+                        return;
+                    }
+                    this.trips[this.currentTripIndex].items.push({ ...this.newSchedule });
+                    this.showAddSchedule = false;
+                    this.showToastMessage('行程項目已新增');
+                    this.saveToStorage();
+                },
+
+                // Locations
+                saveLocation() {
+                    if (!this.newLocation.name || !this.newLocation.address) {
+                        this.showToastMessage('請填寫地點名稱和地址');
+                        return;
+                    }
+                    this.savedLocations.push({ ...this.newLocation });
+                    this.newLocation = { name: '', address: '', icon: 'fas fa-map-marker-alt' };
+                    this.showAddLocation = false;
+                    this.showToastMessage('地點已新增');
+                    this.saveToStorage();
+                },
+
+                // Expense
+                getCategoryBg(category) {
+                    const colors = {
+                        food: 'bg-orange-100 text-orange-500',
+                        transport: 'bg-blue-100 text-blue-500',
+                        hotel: 'bg-purple-100 text-purple-500',
+                        shopping: 'bg-pink-100 text-pink-500',
+                        ticket: 'bg-green-100 text-green-500',
+                        other: 'bg-gray-100 text-gray-500'
+                    };
+                    return colors[category] || 'bg-morandy-100 text-morandy-500';
+                },
+                getCategoryIcon(category) {
+                    const icons = {
+                        food: 'fas fa-utensils',
+                        transport: 'fas fa-car',
+                        hotel: 'fas fa-bed',
+                        shopping: 'fas fa-shopping-bag',
+                        ticket: 'fas fa-ticket-alt',
+                        other: 'fas fa-ellipsis-h'
+                    };
+                    return icons[category] || 'fas fa-coins';
+                },
+                getCategoryName(category) {
+                    const cat = this.expenseCategories.find(c => c.id === category);
+                    return cat ? cat.name : '其他';
+                },
+                saveExpense() {
+                    if (!this.newExpense.title || !this.newExpense.amount) {
+                        this.showToastMessage('請填寫項目名稱和金額');
+                        return;
+                    }
+                    this.expenses.push({ ...this.newExpense });
+                    this.newExpense = { title: '', amount: '', category: 'food', paymentMethod: '現金', date: new Date().toISOString().split('T')[0] };
+                    this.showAddExpense = false;
+                    this.showToastMessage('支出已記錄');
+                    this.saveToStorage();
+                },
+
+                // Shopping
+                addShoppingItem() {
+                    if (!this.newShoppingItem) return;
+                    this.shoppingList.push({ name: this.newShoppingItem, quantity: this.shoppingQuantity || 1, completed: false });
+                    this.newShoppingItem = '';
+                    this.shoppingQuantity = 1;
+                    this.saveToStorage();
+                },
+                toggleShoppingItem(index) {
+                    this.shoppingList[index].completed = !this.shoppingList[index].completed;
+                    this.saveToStorage();
+                },
+                removeShoppingItem(index) {
+                    this.shoppingList.splice(index, 1);
+                    this.saveToStorage();
+                },
+
+                // Links
+                fetchLinkInfo() {
+                    if (this.newLink.url && !this.newLink.title) {
+                        try {
+                            const url = new URL(this.newLink.url);
+                            this.newLink.title = url.hostname.replace('www.', '');
+                        } catch (e) {}
+                    }
+                },
+                saveLink() {
+                    if (!this.newLink.title || !this.newLink.url) {
+                        this.showToastMessage('請填寫標題和連結');
+                        return;
+                    }
+                    this.savedLinks.push({ ...this.newLink, rating: 0 });
+                    this.newLink = { title: '', url: '', description: '', location: '', rating: 0 };
+                    this.showAddLink = false;
+                    this.showToastMessage('連結已儲存');
+                    this.saveToStorage();
+                },
+                updateLinkRating(index, rating) {
+                    this.savedLinks[index].rating = rating;
+                    this.saveToStorage();
+                },
+                removeLink(index) {
+                    this.savedLinks.splice(index, 1);
+                    this.saveToStorage();
+                },
+
+                // Storage
+                saveToStorage() {
+                    const data = {
+                        trips: this.trips,
+                        savedLocations: this.savedLocations,
+                        expenses: this.expenses,
+                        shoppingList: this.shoppingList,
+                        savedLinks: this.savedLinks
+                    };
+                    localStorage.setItem('travelAppData', JSON.stringify(data));
+                },
+                loadFromStorage() {
+                    const data = JSON.parse(localStorage.getItem('travelAppData') || '{}');
+                    if (data.trips) this.trips = data.trips;
+                    if (data.savedLocations) this.savedLocations = data.savedLocations;
+                    if (data.expenses) this.expenses = data.expenses;
+                    if (data.shoppingList) this.shoppingList = data.shoppingList;
+                    if (data.savedLinks) this.savedLinks = data.savedLinks;
+                }
+            },
+            mounted() {
+                this.loadFromStorage();
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
