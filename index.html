@@ -66,6 +66,10 @@
             font-family: 'Noto Sans TC', sans-serif;
             background: linear-gradient(135deg, #f7f6f5 0%, #ebe7e4 100%);
             min-height: 100vh;
+            overflow-x: hidden;
+        }
+        html {
+            overflow-x: hidden;
         }
         .card-shadow {
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -127,7 +131,7 @@
     </style>
 </head>
 <body class="bg-morandy-50">
-    <div id="app" class="max-w-md mx-auto bg-morandy-50 min-h-screen pb-20">
+    <div id="app" class="max-w-md w-full mx-auto bg-morandy-50 min-h-screen pb-20 overflow-x-hidden">
         <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 px-5 py-4 card-shadow">
             <div class="flex items-center justify-between">
                 <div>
@@ -174,9 +178,9 @@
 
         <main class="px-5 py-4">
             <div v-show="activeTab === 'itinerary'">
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                     <h2 class="text-lg font-semibold text-morandy-800">行程表</h2>
-                    <button @click="showAddTrip = true" class="px-4 py-2 bg-morandy-600 text-white rounded-xl text-sm font-medium hover:bg-morandy-700 transition-colors">
+                    <button @click="showAddTrip = true" class="w-full sm:w-auto px-4 py-2 bg-morandy-600 text-white rounded-xl text-sm font-medium hover:bg-morandy-700 transition-colors">
                         <i class="fas fa-plus mr-1"></i>新增行程
                     </button>
                 </div>
@@ -225,12 +229,12 @@
             </div>
 
             <div v-show="activeTab === 'map'">
-                <div class="flex items-center justify-between mb-4 gap-3">
-                    <div>
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+                    <div class="min-w-0">
                         <h2 class="text-lg font-semibold text-morandy-800">地圖</h2>
-                        <p class="text-sm text-morandy-500 mt-1">行程地點、收藏地點、連結地點都會顯示在這裡</p>
+                        <p class="text-sm text-morandy-500 mt-1 break-words">行程地點、收藏地點、連結地點都會顯示在這裡</p>
                     </div>
-                    <button @click="fitMapToMarkers" class="px-3 py-2 bg-morandy-100 text-morandy-700 rounded-xl text-sm hover:bg-morandy-200 transition-colors">
+                    <button @click="fitMapToMarkers" class="w-full sm:w-auto px-3 py-2 bg-morandy-100 text-morandy-700 rounded-xl text-sm hover:bg-morandy-200 transition-colors">
                         <i class="fas fa-crosshairs mr-1"></i>定位全部
                     </button>
                 </div>
@@ -240,7 +244,7 @@
                 </div>
 
                 <div class="mt-4 p-4 bg-white rounded-2xl card-shadow">
-                    <div class="flex items-center justify-between mb-2">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                         <h3 class="font-semibold text-morandy-800">地圖標記來源</h3>
                         <span class="text-sm text-morandy-500">{{ allMapLocations.length }} 個地點</span>
                     </div>
@@ -255,18 +259,18 @@
                 <div v-if="savedLocations.length === 0" class="text-center py-10 bg-white rounded-2xl card-shadow text-morandy-500">
                     目前還沒有收藏地點
                 </div>
-                <div v-for="(location, index) in savedLocations" :key="location.id || index" class="bg-white rounded-2xl p-4 mb-3 card-shadow flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-xl bg-morandy-100 flex items-center justify-center text-morandy-600">
+                <div v-for="(location, index) in savedLocations" :key="location.id || index" class="bg-white rounded-2xl p-4 mb-3 card-shadow flex flex-col sm:flex-row sm:items-center gap-4 overflow-hidden">
+                    <div class="w-12 h-12 rounded-xl bg-morandy-100 flex items-center justify-center text-morandy-600 flex-shrink-0">
                         <i :class="location.icon || 'fas fa-map-marker-alt'"></i>
                     </div>
-                    <div class="flex-1 min-w-0 cursor-pointer" @click="focusLocationOnMap(location)">
-                        <div class="flex items-center gap-2">
-                            <p class="font-medium text-morandy-800">{{ location.name }}</p>
+                    <div class="flex-1 min-w-0 w-full cursor-pointer" @click="focusLocationOnMap(location)">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <p class="font-medium text-morandy-800 break-words">{{ location.name }}</p>
                             <span v-if="location.source" class="px-2 py-0.5 rounded-full text-xs bg-morandy-100 text-morandy-600">{{ location.source }}</span>
                         </div>
-                        <p class="text-sm text-morandy-500 truncate">{{ location.address }}</p>
+                        <p class="text-sm text-morandy-500 break-all">{{ location.address }}</p>
                     </div>
-                    <div class="flex items-center gap-2 flex-shrink-0">
+                    <div class="flex items-center justify-end gap-2 w-full sm:w-auto flex-shrink-0">
                         <button @click="editLocation(index)" class="w-10 h-10 rounded-full bg-morandy-100 text-morandy-600 flex items-center justify-center hover:bg-morandy-200 transition-colors">
                             <i class="fas fa-pen"></i>
                         </button>
@@ -285,12 +289,32 @@
             </div>
 
             <div v-show="activeTab === 'expense'">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-lg font-semibold text-morandy-800">記帳本</h2>
-                    <div class="text-right">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                    <div>
+                        <h2 class="text-lg font-semibold text-morandy-800">記帳本</h2>
+                        <p class="text-sm text-morandy-500 mt-1">可分成個人和共同支出</p>
+                    </div>
+                    <div class="text-left sm:text-right">
                         <p class="text-sm text-morandy-500">總支出</p>
                         <p class="text-xl font-bold text-morandy-800">${{ totalExpense.toLocaleString() }}</p>
                     </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-white rounded-2xl p-4 card-shadow">
+                        <p class="text-sm text-morandy-500 mb-1">個人</p>
+                        <p class="text-xl font-bold text-morandy-800">${{ personalExpenseTotal.toLocaleString() }}</p>
+                    </div>
+                    <div class="bg-white rounded-2xl p-4 card-shadow">
+                        <p class="text-sm text-morandy-500 mb-1">共同</p>
+                        <p class="text-xl font-bold text-morandy-800">${{ sharedExpenseTotal.toLocaleString() }}</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mb-3 overflow-x-auto pb-2">
+                    <button v-for="group in expenseGroups" :key="group.id" @click="selectedExpenseGroup = group.id" :class="['px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors', selectedExpenseGroup === group.id ? 'bg-morandy-600 text-white' : 'bg-white text-morandy-600 card-shadow']">
+                        <i :class="group.icon + ' mr-1'"></i>{{ group.name }}
+                    </button>
                 </div>
 
                 <div class="flex gap-2 mb-4 overflow-x-auto pb-2">
@@ -306,16 +330,19 @@
                     <p class="text-morandy-500">還沒有記錄</p>
                 </div>
 
-                <div v-for="(expense, index) in filteredExpenses" :key="expense.id || index" class="bg-white rounded-2xl p-4 mb-3 card-shadow">
+                <div v-for="(expense, index) in filteredExpenses" :key="expense.id || index" class="bg-white rounded-2xl p-4 mb-3 card-shadow overflow-hidden">
                     <div class="flex items-center gap-3">
                         <div class="w-12 h-12 rounded-xl flex items-center justify-center" :class="getCategoryBg(expense.category)">
                             <i :class="getCategoryIcon(expense.category) + ' text-lg'"></i>
                         </div>
-                        <div class="flex-1">
-                            <p class="font-medium text-morandy-800">{{ expense.title }}</p>
-                            <p class="text-sm text-morandy-500">{{ expense.paymentMethod }} · {{ expense.date }}</p>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <p class="font-medium text-morandy-800 break-words">{{ expense.title }}</p>
+                                <span class="px-2 py-0.5 rounded-full text-xs" :class="expense.group === 'shared' ? 'bg-amber-50 text-amber-600' : 'bg-morandy-100 text-morandy-600'">{{ getExpenseGroupName(expense.group) }}</span>
+                            </div>
+                            <p class="text-sm text-morandy-500 break-words">{{ expense.paymentMethod }} · {{ expense.date }}</p>
                         </div>
-                        <div class="text-right">
+                        <div class="text-right flex-shrink-0">
                             <p class="font-bold text-morandy-800">-${{ expense.amount }}</p>
                             <p class="text-xs text-morandy-400">{{ getCategoryName(expense.category) }}</p>
                         </div>
@@ -328,20 +355,20 @@
             </div>
 
             <div v-show="activeTab === 'shopping'">
-                <div class="flex items-center justify-between mb-4 gap-3">
-                    <div>
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+                    <div class="min-w-0">
                         <h2 class="text-lg font-semibold text-morandy-800">購物清單</h2>
-                        <p class="text-sm text-morandy-500 mt-1">可以依照人員或用途自行建立分組</p>
+                        <p class="text-sm text-morandy-500 mt-1 break-words">可以依照人員或用途自行建立分組</p>
                     </div>
-                    <span class="px-3 py-1 bg-morandy-100 rounded-full text-sm text-morandy-600">
+                    <span class="w-fit px-3 py-1 bg-morandy-100 rounded-full text-sm text-morandy-600">
                         {{ completedItems }}/{{ totalShoppingItems }}
                     </span>
                 </div>
 
                 <div class="bg-white rounded-2xl p-4 mb-4 card-shadow space-y-3">
-                    <div class="flex gap-2">
-                        <input v-model="newShoppingGroupName" @keyup.enter="createShoppingGroup" type="text" placeholder="新增分組，例如：我的、朋友的" class="flex-1 px-4 py-2 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
-                        <button @click="createShoppingGroup" class="px-4 py-2 bg-morandy-600 text-white rounded-xl hover:bg-morandy-700 transition-colors">
+                    <div class="flex gap-2 flex-col sm:flex-row">
+                        <input v-model="newShoppingGroupName" @keyup.enter="createShoppingGroup" type="text" placeholder="新增分組，例如：我的、朋友的" class="flex-1 min-w-0 px-4 py-2 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                        <button @click="createShoppingGroup" class="w-full sm:w-auto px-4 py-2 bg-morandy-600 text-white rounded-xl hover:bg-morandy-700 transition-colors">
                             <i class="fas fa-folder-plus"></i>
                         </button>
                     </div>
@@ -350,10 +377,10 @@
                             {{ group.name }}
                         </button>
                     </div>
-                    <div v-if="selectedShoppingGroup" class="flex gap-2">
-                        <input v-model="newShoppingItem" @keyup.enter="addShoppingItem" type="text" placeholder="新增物品..." class="flex-1 px-4 py-2 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
-                        <input v-model="shoppingQuantity" type="number" min="1" placeholder="數量" class="w-16 px-3 py-2 bg-morandy-50 rounded-xl text-morandy-800 text-center focus:outline-none focus:ring-2 focus:ring-morandy-300">
-                        <button @click="addShoppingItem" class="px-4 py-2 bg-morandy-600 text-white rounded-xl hover:bg-morandy-700 transition-colors">
+                    <div v-if="selectedShoppingGroup" class="flex gap-2 flex-col sm:flex-row">
+                        <input v-model="newShoppingItem" @keyup.enter="addShoppingItem" type="text" placeholder="新增物品..." class="flex-1 min-w-0 px-4 py-2 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                        <input v-model="shoppingQuantity" type="number" min="1" placeholder="數量" class="w-full sm:w-16 px-3 py-2 bg-morandy-50 rounded-xl text-morandy-800 text-center focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                        <button @click="addShoppingItem" class="w-full sm:w-auto px-4 py-2 bg-morandy-600 text-white rounded-xl hover:bg-morandy-700 transition-colors">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
@@ -366,16 +393,16 @@
                     <p class="text-morandy-500">先建立一個分組，再開始列購物清單</p>
                 </div>
 
-                <div v-for="(group, groupIndex) in shoppingGroups" :key="group.id" class="bg-white rounded-2xl p-4 mb-4 card-shadow">
-                    <div class="flex items-center justify-between gap-2 mb-3">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h3 class="font-semibold text-morandy-800">{{ group.name }}</h3>
+                <div v-for="(group, groupIndex) in shoppingGroups" :key="group.id" class="bg-white rounded-2xl p-4 mb-4 card-shadow overflow-hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 class="font-semibold text-morandy-800 break-words">{{ group.name }}</h3>
                                 <span class="px-2 py-0.5 rounded-full text-xs bg-morandy-100 text-morandy-600">{{ group.items.filter(item => item.completed).length }}/{{ group.items.length }}</span>
                             </div>
                             <p class="text-sm text-morandy-500">{{ group.items.length === 0 ? '還沒有項目' : '共 ' + group.items.length + ' 項' }}</p>
                         </div>
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 w-full sm:w-auto justify-end">
                             <button @click="renameShoppingGroup(groupIndex)" class="w-8 h-8 rounded-lg bg-morandy-100 flex items-center justify-center text-morandy-600 hover:bg-morandy-200 transition-colors">
                                 <i class="fas fa-pen text-sm"></i>
                             </button>
@@ -402,9 +429,9 @@
             </div>
 
             <div v-show="activeTab === 'links'">
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
                     <h2 class="text-lg font-semibold text-morandy-800">旅遊連結</h2>
-                    <button @click="openLinkModal()" class="px-4 py-2 bg-morandy-600 text-white rounded-xl text-sm font-medium hover:bg-morandy-700 transition-colors">
+                    <button @click="openLinkModal()" class="w-full sm:w-auto px-4 py-2 bg-morandy-600 text-white rounded-xl text-sm font-medium hover:bg-morandy-700 transition-colors">
                         <i class="fas fa-link mr-1"></i>新增連結
                     </button>
                 </div>
@@ -417,7 +444,7 @@
                     <p class="text-sm text-morandy-400 mt-1">加入旅遊連結後，會盡量自動抓標題、簡介與地點線索</p>
                 </div>
 
-                <div v-for="(link, index) in savedLinks" :key="link.id || index" class="bg-white rounded-2xl p-4 mb-3 card-shadow">
+                <div v-for="(link, index) in savedLinks" :key="link.id || index" class="bg-white rounded-2xl p-4 mb-3 card-shadow overflow-hidden">
                     <div @click="openLink(link.url)" class="clickable-card rounded-2xl">
                         <div class="flex items-start gap-3 mb-3">
                             <div class="w-12 h-12 rounded-xl bg-morandy-100 flex items-center justify-center text-morandy-600 flex-shrink-0">
@@ -425,10 +452,10 @@
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <h3 class="font-medium text-morandy-800">{{ link.title }}</h3>
+                                    <h3 class="font-medium text-morandy-800 break-words">{{ link.title }}</h3>
                                     <span v-if="link.autoFetched" class="px-2 py-0.5 rounded-full text-xs bg-green-50 text-green-600">已自動擷取</span>
                                 </div>
-                                <p class="text-sm text-morandy-500 truncate">{{ link.url }}</p>
+                                <p class="text-sm text-morandy-500 break-all">{{ link.url }}</p>
                             </div>
                             <div class="w-10 h-10 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-500 flex-shrink-0">
                                 <i class="fas fa-external-link-alt"></i>
@@ -459,15 +486,15 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between gap-2">
-                        <button @click="editLink(index)" class="text-sm text-morandy-600 hover:text-morandy-800 transition-colors">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <button @click="editLink(index)" class="w-full sm:w-auto text-sm text-morandy-600 hover:text-morandy-800 transition-colors text-left">
                             <i class="fas fa-pen mr-1"></i>編輯內容
                         </button>
-                        <div class="flex gap-3">
-                            <button v-if="link.location" @click="createLocationFromLink(link)" class="text-sm text-morandy-600 hover:text-morandy-800 transition-colors">
+                        <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                            <button v-if="link.location" @click="createLocationFromLink(link)" class="w-full sm:w-auto text-sm text-morandy-600 hover:text-morandy-800 transition-colors text-left">
                                 <i class="fas fa-map-pin mr-1"></i>加入地圖
                             </button>
-                            <button @click="removeLink(index)" class="text-sm text-red-400 hover:text-red-500 transition-colors">
+                            <button @click="removeLink(index)" class="w-full sm:w-auto text-sm text-red-400 hover:text-red-500 transition-colors text-left">
                                 <i class="fas fa-trash mr-1"></i>刪除
                             </button>
                         </div>
@@ -537,8 +564,8 @@
             </div>
         </div>
 
-        <div v-if="showAddLocation" class="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
-            <div class="bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
+        <div v-if="showAddLocation" class="fixed inset-0 bg-black/50 z-[70] flex items-end justify-center">
+            <div class="bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up max-h-[90vh] overflow-y-auto relative z-[71]">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-morandy-800">{{ editingLocationIndex === null ? '新增地點' : '編輯地點' }}</h3>
                     <button @click="closeLocationModal" class="w-8 h-8 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600">
@@ -590,6 +617,13 @@
                         <label class="block text-sm text-morandy-600 mb-1">類別</label>
                         <select v-model="newExpense.category" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 focus:outline-none focus:ring-2 focus:ring-morandy-300">
                             <option v-for="cat in expenseCategories.filter(c => c.id !== 'all')" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-morandy-600 mb-1">支出分組</label>
+                        <select v-model="newExpense.group" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                            <option value="personal">個人</option>
+                            <option value="shared">共同</option>
                         </select>
                     </div>
                     <div>
@@ -709,10 +743,16 @@
                         { id: 'ticket', name: '門票', icon: 'fas fa-ticket-alt' },
                         { id: 'other', name: '其他', icon: 'fas fa-ellipsis-h' }
                     ],
+                    expenseGroups: [
+                        { id: 'all', name: '全部', icon: 'fas fa-layer-group' },
+                        { id: 'personal', name: '個人', icon: 'fas fa-user' },
+                        { id: 'shared', name: '共同', icon: 'fas fa-users' }
+                    ],
                     expenses: [],
                     selectedCategory: 'all',
+                    selectedExpenseGroup: 'all',
                     showAddExpense: false,
-                    newExpense: { title: '', amount: '', category: 'food', paymentMethod: '現金', date: new Date().toISOString().split('T')[0] },
+                    newExpense: { title: '', amount: '', category: 'food', group: 'personal', paymentMethod: '現金', date: new Date().toISOString().split('T')[0] },
 
                     shoppingGroups: [
                         { id: 'default', name: '我的', items: [] }
@@ -732,9 +772,23 @@
                 totalExpense() {
                     return this.expenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
                 },
+                personalExpenseTotal() {
+                    return this.expenses
+                        .filter(expense => (expense.group || 'personal') === 'personal')
+                        .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+                },
+                sharedExpenseTotal() {
+                    return this.expenses
+                        .filter(expense => expense.group === 'shared')
+                        .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+                },
                 filteredExpenses() {
-                    if (this.selectedCategory === 'all') return this.expenses;
-                    return this.expenses.filter(e => e.category === this.selectedCategory);
+                    let expenses = this.expenses;
+                    if (this.selectedExpenseGroup !== 'all') {
+                        expenses = expenses.filter(e => (e.group || 'personal') === this.selectedExpenseGroup);
+                    }
+                    if (this.selectedCategory === 'all') return expenses;
+                    return expenses.filter(e => e.category === this.selectedCategory);
                 },
                 totalShoppingItems() {
                     return this.shoppingGroups.reduce((sum, group) => sum + group.items.length, 0);
@@ -912,13 +966,17 @@
                     const cat = this.expenseCategories.find(c => c.id === category);
                     return cat ? cat.name : '其他';
                 },
+                getExpenseGroupName(group) {
+                    const expenseGroup = this.expenseGroups.find(item => item.id === (group || 'personal'));
+                    return expenseGroup ? expenseGroup.name : '個人';
+                },
                 saveExpense() {
                     if (!this.newExpense.title || !this.newExpense.amount) {
                         this.showToastMessage('請填寫項目名稱和金額');
                         return;
                     }
-                    this.expenses.push({ id: this.makeId('expense'), ...this.newExpense });
-                    this.newExpense = { title: '', amount: '', category: 'food', paymentMethod: '現金', date: new Date().toISOString().split('T')[0] };
+                    this.expenses.push({ id: this.makeId('expense'), ...this.newExpense, group: this.newExpense.group || 'personal' });
+                    this.newExpense = { title: '', amount: '', category: 'food', group: 'personal', paymentMethod: '現金', date: new Date().toISOString().split('T')[0] };
                     this.showAddExpense = false;
                     this.showToastMessage('支出已記錄');
                     this.saveToStorage();
@@ -1151,9 +1209,10 @@
                 },
                 initMap() {
                     if (this.map || !document.getElementById('travel-map')) return;
+                    const initialCenter = this.getPreferredMapCenter();
                     this.map = L.map('travel-map', {
                         zoomControl: true
-                    }).setView([25.0330, 121.5654], 5);
+                    }).setView(initialCenter.center, initialCenter.zoom);
 
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                         attribution: '&copy; OpenStreetMap contributors'
@@ -1162,6 +1221,32 @@
                     this.isMapReady = true;
                     this.refreshMapMarkers();
                     setTimeout(() => this.map.invalidateSize(), 150);
+                },
+                getPreferredMapCenter() {
+                    const locationWithCoordinates = this.allMapLocations.find(location => location.lat && location.lng);
+                    if (locationWithCoordinates) {
+                        return {
+                            center: [locationWithCoordinates.lat, locationWithCoordinates.lng],
+                            zoom: 11
+                        };
+                    }
+
+                    const firstKnownAddress = this.allMapLocations.find(location => location.address);
+                    if (firstKnownAddress) {
+                        const normalizedAddress = firstKnownAddress.address.trim().toLowerCase();
+                        const cached = this.geocodeCache[normalizedAddress];
+                        if (cached) {
+                            return {
+                                center: [cached.lat, cached.lng],
+                                zoom: 11
+                            };
+                        }
+                    }
+
+                    return {
+                        center: [35.6764, 139.6500],
+                        zoom: 5
+                    };
                 },
                 async ensureCoordinatesForLocation(location) {
                     if (!location?.address) return null;
@@ -1232,7 +1317,7 @@
                             icon: this.createMarkerIcon(location.icon)
                         }).addTo(this.map);
                         const popupHtml = `
-                            <div style="min-width:180px;">
+                            <div style="min-width:180px;max-width:220px;word-break:break-word;">
                                 <div style="font-weight:600;margin-bottom:4px;">${location.name}</div>
                                 <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">${location.address}</div>
                                 <div style="font-size:12px;color:#857868;">${location.source || '地點'}</div>
@@ -1247,6 +1332,9 @@
                         this.map.setView(markerBounds[0], 13);
                     } else if (markerBounds.length > 1) {
                         this.map.fitBounds(markerBounds, { padding: [30, 30] });
+                    } else {
+                        const preferred = this.getPreferredMapCenter();
+                        this.map.setView(preferred.center, preferred.zoom);
                     }
                 },
                 fitMapToMarkers() {
@@ -1295,7 +1383,9 @@
                     if (!data) return;
                     this.trips = Array.isArray(data.trips) ? data.trips : [];
                     this.savedLocations = Array.isArray(data.savedLocations) ? data.savedLocations : [];
-                    this.expenses = Array.isArray(data.expenses) ? data.expenses : [];
+                    this.expenses = Array.isArray(data.expenses)
+                        ? data.expenses.map(expense => ({ ...expense, group: expense.group || 'personal' }))
+                        : [];
                     this.savedLinks = Array.isArray(data.savedLinks) ? data.savedLinks : [];
                     this.geocodeCache = data.geocodeCache || {};
 
