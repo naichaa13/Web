@@ -1447,20 +1447,20 @@
                     localStorage.setItem('travelAppData', JSON.stringify(this.serializeData()));
                 },
                 loadFromStorage() {
+                    this.loadFromLocalStorage();
+
                     if (this.firebaseSyncEnabled && database) {
                         this.beginSyncState();
+
                         database.ref('travelApp').once('value').then((snapshot) => {
                             const data = snapshot.val();
                             if (data) {
                                 this.hydrateData(data);
-                            } else {
-                                this.loadFromLocalStorage();
+                                this.$nextTick(() => this.refreshMapMarkers());
                             }
                             this.firebaseReady = true;
                             this.endSyncState();
-                            this.$nextTick(() => this.refreshMapMarkers());
                         }).catch(() => {
-                            this.loadFromLocalStorage();
                             this.enableLocalMode();
                         });
 
@@ -1477,12 +1477,9 @@
                             });
                             this.firebaseListenerAttached = true;
                         }
-                    } else {
-                        this.loadFromLocalStorage();
                     }
                 },
                 loadFromLocalStorage() {
-                    this.endSyncState();
                     const data = JSON.parse(localStorage.getItem('travelAppData') || '{}');
                     this.hydrateData(data);
                     this.$nextTick(() => this.refreshMapMarkers());
