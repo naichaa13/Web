@@ -139,7 +139,7 @@
                     <p class="text-xs text-morandy-500">{{ currentDate }}</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <div v-if="firebaseSyncEnabled" class="flex items-center gap-2">
+                    <div v-if="showSyncStatus" class="flex items-center gap-2">
                         <span v-if="isSyncing" class="flex items-center gap-1 text-xs text-morandy-500">
                             <i class="fas fa-sync-alt fa-spin"></i>
                             同步中
@@ -703,6 +703,7 @@
                     showWeather: false,
                     userInitial: 'U',
                     isSyncing: false,
+                    showSyncStatus: firebaseInitialized,
                     syncTimeoutId: null,
                     firebaseReady: false,
                     firebaseListenerAttached: false,
@@ -836,16 +837,19 @@
             },
             methods: {
                 beginSyncState() {
+                    this.showSyncStatus = true;
                     this.isSyncing = true;
                     clearTimeout(this.syncTimeoutId);
                     this.syncTimeoutId = setTimeout(() => {
                         this.isSyncing = false;
-                    }, 6000);
+                        this.showSyncStatus = false;
+                    }, 2500);
                 },
                 endSyncState() {
                     clearTimeout(this.syncTimeoutId);
                     this.syncTimeoutId = null;
                     this.isSyncing = false;
+                    this.showSyncStatus = false;
                 },
                 enableLocalMode() {
                     this.firebaseSyncEnabled = false;
@@ -1478,6 +1482,7 @@
                     }
                 },
                 loadFromLocalStorage() {
+                    this.endSyncState();
                     const data = JSON.parse(localStorage.getItem('travelAppData') || '{}');
                     this.hydrateData(data);
                     this.$nextTick(() => this.refreshMapMarkers());
