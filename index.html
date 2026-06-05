@@ -1500,11 +1500,11 @@
                 },
                 allMapLocations: {
                     handler() {
-                        if (this.map) {
+                        if (this.map && this.activeTab === 'map') {
                             this.refreshMapMarkers();
                         }
                     },
-                    deep: true
+                    deep: false
                 }
             },
             mounted() {
