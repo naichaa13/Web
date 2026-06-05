@@ -142,7 +142,7 @@
         <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 px-5 py-4 card-shadow">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-xl font-bold text-morandy-800">旅行趣</h1>
+                    <h1 class="text-xl font-bold text-morandy-800">旅遊</h1>
                     <p class="text-xs text-morandy-500">{{ currentDate }}</p>
                 </div>
                 <div class="flex items-center gap-3">
@@ -308,6 +308,12 @@
                 </div>
 
                 <div class="bg-white rounded-2xl p-4 mb-4 card-shadow space-y-3">
+                    <div class="flex gap-2 flex-col sm:flex-row">
+                        <input v-model="newExpenseGroupName" @keyup.enter="createExpenseGroup" type="text" placeholder="新增分組，例如：個人、共同、媽媽" class="flex-1 min-w-0 px-4 py-2 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
+                        <button @click="createExpenseGroup" class="w-full sm:w-auto px-4 py-2 bg-morandy-600 text-white rounded-xl hover:bg-morandy-700 transition-colors">
+                            <i class="fas fa-layer-group mr-2"></i>新增分組
+                        </button>
+                    </div>
                     <div class="flex gap-2 flex-wrap">
                         <button v-for="group in expenseGroups" :key="group.id" @click="selectedExpenseGroupId = group.id" :class="['px-4 py-2 rounded-xl text-sm font-medium transition-colors', selectedExpenseGroupId === group.id ? 'bg-morandy-600 text-white' : 'bg-morandy-100 text-morandy-700']">
                             {{ group.name }}
@@ -346,8 +352,8 @@
                     </div>
                 </div>
 
-                <button @click="showAddExpense = true" class="fixed bottom-24 right-5 w-14 h-14 bg-morandy-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-morandy-700 transition-colors z-30">
-                    <i class="fas fa-plus text-xl"></i>
+                <button @click="showAddExpense = true" class="fixed bottom-24 right-4 sm:right-5 w-12 h-12 sm:w-14 sm:h-14 bg-morandy-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-morandy-700 transition-colors z-30">
+                    <i class="fas fa-plus text-lg sm:text-xl"></i>
                 </button>
             </div>
 
@@ -612,8 +618,8 @@
                     </div>
                     <div>
                         <label class="block text-sm text-morandy-600 mb-1">支出分組</label>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button v-for="group in expenseGroups" :key="group.id" @click="newExpense.groupId = group.id" :class="['px-4 py-3 rounded-xl text-sm font-medium transition-colors', newExpense.groupId === group.id ? 'bg-morandy-600 text-white' : 'bg-morandy-100 text-morandy-700']">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button v-for="group in expenseGroups" :key="group.id" @click="newExpense.groupId = group.id" :class="['px-4 py-3 rounded-xl text-sm font-medium transition-colors break-words', newExpense.groupId === group.id ? 'bg-morandy-600 text-white' : 'bg-morandy-100 text-morandy-700']">
                                 {{ group.name }}
                             </button>
                         </div>
@@ -745,6 +751,7 @@
                         { id: 'personal', name: '個人' },
                         { id: 'shared', name: '共同' }
                     ],
+                    newExpenseGroupName: '',
                     expenses: [],
                     selectedExpenseGroupId: 'personal',
                     selectedCategory: 'all',
@@ -925,10 +932,11 @@
                         this.savedLocations.push(location);
                         this.showToastMessage('地點已新增');
                     }
+                    const targetIndex = this.editingLocationIndex;
                     this.closeLocationModal();
                     this.saveToStorage();
-                    const targetLocation = this.editingLocationIndex !== null
-                        ? this.savedLocations[this.editingLocationIndex]
+                    const targetLocation = targetIndex !== null
+                        ? this.savedLocations[targetIndex]
                         : this.savedLocations[this.savedLocations.length - 1];
                     await this.ensureCoordinatesForLocation(targetLocation);
                     this.refreshMapMarkers();
@@ -956,13 +964,32 @@
                     const group = this.expenseGroups.find(item => item.id === (groupId || 'personal'));
                     return group ? group.name : '個人';
                 },
+                createExpenseGroup() {
+                    const name = this.newExpenseGroupName.trim();
+                    if (!name) {
+                        this.showToastMessage('請輸入記帳分組名稱');
+                        return;
+                    }
+                    const duplicated = this.expenseGroups.some(group => group.name === name);
+                    if (duplicated) {
+                        this.showToastMessage('這個記帳分組已存在');
+                        return;
+                    }
+                    const newGroup = { id: this.makeId('expense-group'), name };
+                    this.expenseGroups.push(newGroup);
+                    this.selectedExpenseGroupId = newGroup.id;
+                    this.newExpense.groupId = newGroup.id;
+                    this.newExpenseGroupName = '';
+                    this.showToastMessage('記帳分組已新增');
+                    this.saveToStorage();
+                },
                 saveExpense() {
                     if (!this.newExpense.title || !this.newExpense.amount) {
                         this.showToastMessage('請填寫項目名稱和金額');
                         return;
                     }
                     this.expenses.push({ id: this.makeId('expense'), ...this.newExpense, groupId: this.newExpense.groupId || 'personal' });
-                    this.newExpense = { title: '', amount: '', category: 'food', groupId: this.selectedExpenseGroupId === 'shared' ? 'shared' : 'personal', paymentMethod: '現金', date: new Date().toISOString().split('T')[0] };
+                    this.newExpense = { title: '', amount: '', category: 'food', groupId: this.selectedExpenseGroupId || 'personal', paymentMethod: '現金', date: new Date().toISOString().split('T')[0] };
                     this.showAddExpense = false;
                     this.showToastMessage('支出已記錄');
                     this.saveToStorage();
@@ -1341,6 +1368,7 @@
                         trips: this.trips,
                         savedLocations: this.savedLocations,
                         expenses: this.expenses,
+                        expenseGroups: this.expenseGroups,
                         shoppingGroups: this.shoppingGroups,
                         savedLinks: this.savedLinks,
                         geocodeCache: this.geocodeCache,
@@ -1356,6 +1384,10 @@
                         : [];
                     this.savedLinks = Array.isArray(data.savedLinks) ? data.savedLinks : [];
                     this.geocodeCache = data.geocodeCache || {};
+
+                    if (Array.isArray(data.expenseGroups) && data.expenseGroups.length > 0) {
+                        this.expenseGroups = data.expenseGroups;
+                    }
 
                     if (Array.isArray(data.shoppingGroups) && data.shoppingGroups.length > 0) {
                         this.shoppingGroups = data.shoppingGroups;
