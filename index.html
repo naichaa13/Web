@@ -901,7 +901,7 @@
                     this.saveToStorage();
                     this.refreshMapMarkers();
                 },
-                saveLocation() {
+                async saveLocation() {
                     if (!this.newLocation.name || !this.newLocation.address) {
                         this.showToastMessage('請填寫地點名稱和地址');
                         return;
@@ -913,10 +913,9 @@
                         icon: this.newLocation.icon || 'fas fa-map-marker-alt',
                         source: '收藏'
                     };
-                    const editingIndex = this.editingLocationIndex;
-                    if (editingIndex !== null) {
-                        this.savedLocations[editingIndex] = {
-                            ...this.savedLocations[editingIndex],
+                    if (this.editingLocationIndex !== null) {
+                        this.savedLocations[this.editingLocationIndex] = {
+                            ...this.savedLocations[this.editingLocationIndex],
                             ...location,
                             lat: undefined,
                             lng: undefined
@@ -926,17 +925,14 @@
                         this.savedLocations.push(location);
                         this.showToastMessage('地點已新增');
                     }
-                    const targetLocation = editingIndex !== null
-                        ? this.savedLocations[editingIndex]
-                        : this.savedLocations[this.savedLocations.length - 1];
                     this.closeLocationModal();
                     this.saveToStorage();
-                    this.refreshMapMarkers();
+                    const targetLocation = this.editingLocationIndex !== null
+                        ? this.savedLocations[this.editingLocationIndex]
+                        : this.savedLocations[this.savedLocations.length - 1];
                     this.ensureCoordinatesForLocation(targetLocation).then(() => {
                         this.refreshMapMarkers();
-                        if (this.activeTab === 'map') {
-                            this.focusLocationOnMap(targetLocation);
-                        }
+                        this.focusLocationOnMap(targetLocation);
                     });
                 },
                 getCategoryBg(category) {
@@ -1174,7 +1170,7 @@
                     this.savedLinks[index].review = review;
                     this.saveToStorage();
                 },
-                createLocationFromLink(link) {
+                async createLocationFromLink(link) {
                     if (!link.location) return;
                     const alreadyExists = this.savedLocations.some(location => location.address === link.location && location.name === link.title);
                     if (alreadyExists) {
