@@ -25,6 +25,13 @@
 
         let database = null;
         let firebaseInitialized = false;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            firebaseInitialized = true;
+        } catch (e) {
+            console.log('Firebase 初始化失敗，將使用本地儲存模式');
+        }
 
         tailwind.config = {
             theme: {
@@ -117,6 +124,13 @@
             border: 2px solid rgba(255,255,255,0.95);
             font-size: 14px;
         }
+        .modal-overlay {
+            z-index: 1200;
+        }
+        .modal-sheet {
+            position: relative;
+            z-index: 1201;
+        }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -131,7 +145,17 @@
                     <h1 class="text-xl font-bold text-morandy-800">旅行趣</h1>
                     <p class="text-xs text-morandy-500">{{ currentDate }}</p>
                 </div>
-                    <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3">
+                    <div v-if="firebaseInitialized" class="flex items-center gap-2">
+                        <span v-if="isSyncing" class="flex items-center gap-1 text-xs text-morandy-500">
+                            <i class="fas fa-sync-alt fa-spin"></i>
+                            同步中
+                        </span>
+                        <span v-else class="flex items-center gap-1 text-xs text-green-500">
+                            <span class="w-2 h-2 bg-green-500 rounded-full online-indicator"></span>
+                            已連線
+                        </span>
+                    </div>
                     <button @click="showWeather = !showWeather" class="w-10 h-10 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600 hover:bg-morandy-200 transition-colors">
                         <i class="fas fa-cloud-sun text-lg"></i>
                     </button>
@@ -272,38 +296,28 @@
             </div>
 
             <div v-show="activeTab === 'expense'">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
                     <div>
                         <h2 class="text-lg font-semibold text-morandy-800">記帳本</h2>
-                        <p class="text-sm text-morandy-500 mt-1">可分成個人和共同支出</p>
+                        <p class="text-sm text-morandy-500">個人與共同支出分開記錄</p>
                     </div>
-                    <div class="text-left sm:text-right">
+                    <div class="text-right">
                         <p class="text-sm text-morandy-500">總支出</p>
                         <p class="text-xl font-bold text-morandy-800">${{ totalExpense.toLocaleString() }}</p>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3 mb-4">
-                    <div class="bg-white rounded-2xl p-4 card-shadow">
-                        <p class="text-sm text-morandy-500 mb-1">個人</p>
-                        <p class="text-xl font-bold text-morandy-800">${{ personalExpenseTotal.toLocaleString() }}</p>
+                <div class="bg-white rounded-2xl p-4 mb-4 card-shadow space-y-3">
+                    <div class="flex gap-2 flex-wrap">
+                        <button v-for="group in expenseGroups" :key="group.id" @click="selectedExpenseGroupId = group.id" :class="['px-4 py-2 rounded-xl text-sm font-medium transition-colors', selectedExpenseGroupId === group.id ? 'bg-morandy-600 text-white' : 'bg-morandy-100 text-morandy-700']">
+                            {{ group.name }}
+                        </button>
                     </div>
-                    <div class="bg-white rounded-2xl p-4 card-shadow">
-                        <p class="text-sm text-morandy-500 mb-1">共同</p>
-                        <p class="text-xl font-bold text-morandy-800">${{ sharedExpenseTotal.toLocaleString() }}</p>
+                    <div class="flex gap-2 overflow-x-auto pb-1">
+                        <button v-for="cat in expenseCategories" :key="cat.id" @click="selectedCategory = cat.id" :class="['px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors', selectedCategory === cat.id ? 'bg-morandy-600 text-white' : 'bg-morandy-50 text-morandy-600']">
+                            <i :class="cat.icon + ' mr-1'"></i>{{ cat.name }}
+                        </button>
                     </div>
-                </div>
-
-                <div class="flex gap-2 mb-3 overflow-x-auto pb-2">
-                    <button v-for="group in expenseGroups" :key="group.id" @click="selectedExpenseGroup = group.id" :class="['px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors', selectedExpenseGroup === group.id ? 'bg-morandy-600 text-white' : 'bg-white text-morandy-600 card-shadow']">
-                        <i :class="group.icon + ' mr-1'"></i>{{ group.name }}
-                    </button>
-                </div>
-
-                <div class="flex gap-2 mb-4 overflow-x-auto pb-2">
-                    <button v-for="cat in expenseCategories" :key="cat.id" @click="selectedCategory = cat.id" :class="['px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors', selectedCategory === cat.id ? 'bg-morandy-600 text-white' : 'bg-white text-morandy-600 card-shadow']">
-                        <i :class="cat.icon + ' mr-1'"></i>{{ cat.name }}
-                    </button>
                 </div>
 
                 <div v-if="filteredExpenses.length === 0" class="text-center py-12">
@@ -313,17 +327,17 @@
                     <p class="text-morandy-500">還沒有記錄</p>
                 </div>
 
-                <div v-for="(expense, index) in filteredExpenses" :key="expense.id || index" class="bg-white rounded-2xl p-4 mb-3 card-shadow overflow-hidden">
+                <div v-for="(expense, index) in filteredExpenses" :key="expense.id || index" class="bg-white rounded-2xl p-4 mb-3 card-shadow">
                     <div class="flex items-center gap-3">
                         <div class="w-12 h-12 rounded-xl flex items-center justify-center" :class="getCategoryBg(expense.category)">
                             <i :class="getCategoryIcon(expense.category) + ' text-lg'"></i>
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
-                                <p class="font-medium text-morandy-800 break-words">{{ expense.title }}</p>
-                                <span class="px-2 py-0.5 rounded-full text-xs" :class="expense.group === 'shared' ? 'bg-amber-50 text-amber-600' : 'bg-morandy-100 text-morandy-600'">{{ getExpenseGroupName(expense.group) }}</span>
+                                <p class="font-medium text-morandy-800">{{ expense.title }}</p>
+                                <span class="px-2 py-0.5 rounded-full text-xs bg-morandy-100 text-morandy-600">{{ getExpenseGroupName(expense.groupId) }}</span>
                             </div>
-                            <p class="text-sm text-morandy-500 break-words">{{ expense.paymentMethod }} · {{ expense.date }}</p>
+                            <p class="text-sm text-morandy-500">{{ expense.paymentMethod }} · {{ expense.date }}</p>
                         </div>
                         <div class="text-right flex-shrink-0">
                             <p class="font-bold text-morandy-800">-${{ expense.amount }}</p>
@@ -547,8 +561,8 @@
             </div>
         </div>
 
-        <div v-if="showAddLocation" class="fixed inset-0 bg-black/50 z-[70] flex items-end justify-center">
-            <div class="bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up max-h-[90vh] overflow-y-auto relative z-[71]">
+        <div v-if="showAddLocation" class="modal-overlay fixed inset-0 bg-black/50 flex items-end justify-center">
+            <div class="modal-sheet bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-morandy-800">{{ editingLocationIndex === null ? '新增地點' : '編輯地點' }}</h3>
                     <button @click="closeLocationModal" class="w-8 h-8 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600">
@@ -579,8 +593,8 @@
             </div>
         </div>
 
-        <div v-if="showAddExpense" class="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
-            <div class="bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
+        <div v-if="showAddExpense" class="modal-overlay fixed inset-0 bg-black/50 flex items-end justify-center">
+            <div class="modal-sheet bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-morandy-800">新增支出</h3>
                     <button @click="showAddExpense = false" class="w-8 h-8 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600">
@@ -597,16 +611,17 @@
                         <input v-model="newExpense.amount" type="number" placeholder="0" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 placeholder-morandy-400 focus:outline-none focus:ring-2 focus:ring-morandy-300">
                     </div>
                     <div>
+                        <label class="block text-sm text-morandy-600 mb-1">支出分組</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button v-for="group in expenseGroups" :key="group.id" @click="newExpense.groupId = group.id" :class="['px-4 py-3 rounded-xl text-sm font-medium transition-colors', newExpense.groupId === group.id ? 'bg-morandy-600 text-white' : 'bg-morandy-100 text-morandy-700']">
+                                {{ group.name }}
+                            </button>
+                        </div>
+                    </div>
+                    <div>
                         <label class="block text-sm text-morandy-600 mb-1">類別</label>
                         <select v-model="newExpense.category" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 focus:outline-none focus:ring-2 focus:ring-morandy-300">
                             <option v-for="cat in expenseCategories.filter(c => c.id !== 'all')" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm text-morandy-600 mb-1">支出分組</label>
-                        <select v-model="newExpense.group" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 focus:outline-none focus:ring-2 focus:ring-morandy-300">
-                            <option value="personal">個人</option>
-                            <option value="shared">共同</option>
                         </select>
                     </div>
                     <div>
@@ -682,11 +697,7 @@
                     showWeather: false,
                     userInitial: 'U',
                     isSyncing: false,
-                    showSyncStatus: false,
-                    syncTimeoutId: null,
-                    firebaseReady: false,
-                    firebaseListenerAttached: false,
-                    firebaseSyncEnabled: false,
+                    firebaseInitialized: firebaseInitialized,
                     editingTripIndex: null,
                     editingLinkIndex: null,
                     editingLocationIndex: null,
@@ -731,15 +742,14 @@
                         { id: 'other', name: '其他', icon: 'fas fa-ellipsis-h' }
                     ],
                     expenseGroups: [
-                        { id: 'all', name: '全部', icon: 'fas fa-layer-group' },
-                        { id: 'personal', name: '個人', icon: 'fas fa-user' },
-                        { id: 'shared', name: '共同', icon: 'fas fa-users' }
+                        { id: 'personal', name: '個人' },
+                        { id: 'shared', name: '共同' }
                     ],
                     expenses: [],
+                    selectedExpenseGroupId: 'personal',
                     selectedCategory: 'all',
-                    selectedExpenseGroup: 'all',
                     showAddExpense: false,
-                    newExpense: { title: '', amount: '', category: 'food', group: 'personal', paymentMethod: '現金', date: new Date().toISOString().split('T')[0] },
+                    newExpense: { title: '', amount: '', category: 'food', groupId: 'personal', paymentMethod: '現金', date: new Date().toISOString().split('T')[0] },
 
                     shoppingGroups: [
                         { id: 'default', name: '我的', items: [] }
@@ -759,23 +769,12 @@
                 totalExpense() {
                     return this.expenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
                 },
-                personalExpenseTotal() {
-                    return this.expenses
-                        .filter(expense => (expense.group || 'personal') === 'personal')
-                        .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
-                },
-                sharedExpenseTotal() {
-                    return this.expenses
-                        .filter(expense => expense.group === 'shared')
-                        .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
-                },
                 filteredExpenses() {
-                    let expenses = this.expenses;
-                    if (this.selectedExpenseGroup !== 'all') {
-                        expenses = expenses.filter(e => (e.group || 'personal') === this.selectedExpenseGroup);
-                    }
-                    if (this.selectedCategory === 'all') return expenses;
-                    return expenses.filter(e => e.category === this.selectedCategory);
+                    const expensesByGroup = this.selectedExpenseGroupId === 'all'
+                        ? this.expenses
+                        : this.expenses.filter(e => (e.groupId || 'personal') === this.selectedExpenseGroupId);
+                    if (this.selectedCategory === 'all') return expensesByGroup;
+                    return expensesByGroup.filter(e => e.category === this.selectedCategory);
                 },
                 totalShoppingItems() {
                     return this.shoppingGroups.reduce((sum, group) => sum + group.items.length, 0);
@@ -815,27 +814,6 @@
                 }
             },
             methods: {
-                beginSyncState() {
-                    this.showSyncStatus = true;
-                    this.isSyncing = true;
-                    clearTimeout(this.syncTimeoutId);
-                    this.syncTimeoutId = setTimeout(() => {
-                        this.isSyncing = false;
-                        this.showSyncStatus = false;
-                    }, 2500);
-                },
-                endSyncState() {
-                    clearTimeout(this.syncTimeoutId);
-                    this.syncTimeoutId = null;
-                    this.isSyncing = false;
-                    this.showSyncStatus = false;
-                },
-                enableLocalMode() {
-                    this.firebaseSyncEnabled = false;
-                    this.firebaseReady = false;
-                    this.endSyncState();
-                    this.saveToLocalStorage();
-                },
                 showToastMessage(msg) {
                     this.toastMessage = msg;
                     this.showToast = true;
@@ -974,17 +952,17 @@
                     const cat = this.expenseCategories.find(c => c.id === category);
                     return cat ? cat.name : '其他';
                 },
-                getExpenseGroupName(group) {
-                    const expenseGroup = this.expenseGroups.find(item => item.id === (group || 'personal'));
-                    return expenseGroup ? expenseGroup.name : '個人';
+                getExpenseGroupName(groupId) {
+                    const group = this.expenseGroups.find(item => item.id === (groupId || 'personal'));
+                    return group ? group.name : '個人';
                 },
                 saveExpense() {
                     if (!this.newExpense.title || !this.newExpense.amount) {
                         this.showToastMessage('請填寫項目名稱和金額');
                         return;
                     }
-                    this.expenses.push({ id: this.makeId('expense'), ...this.newExpense, group: this.newExpense.group || 'personal' });
-                    this.newExpense = { title: '', amount: '', category: 'food', group: 'personal', paymentMethod: '現金', date: new Date().toISOString().split('T')[0] };
+                    this.expenses.push({ id: this.makeId('expense'), ...this.newExpense, groupId: this.newExpense.groupId || 'personal' });
+                    this.newExpense = { title: '', amount: '', category: 'food', groupId: this.selectedExpenseGroupId === 'shared' ? 'shared' : 'personal', paymentMethod: '現金', date: new Date().toISOString().split('T')[0] };
                     this.showAddExpense = false;
                     this.showToastMessage('支出已記錄');
                     this.saveToStorage();
@@ -1217,10 +1195,9 @@
                 },
                 initMap() {
                     if (this.map || !document.getElementById('travel-map')) return;
-                    const initialCenter = this.getPreferredMapCenter();
                     this.map = L.map('travel-map', {
                         zoomControl: true
-                    }).setView(initialCenter.center, initialCenter.zoom);
+                    }).setView([35.6762, 139.6503], 11);
 
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                         attribution: '&copy; OpenStreetMap contributors'
@@ -1229,32 +1206,6 @@
                     this.isMapReady = true;
                     this.refreshMapMarkers();
                     setTimeout(() => this.map.invalidateSize(), 150);
-                },
-                getPreferredMapCenter() {
-                    const locationWithCoordinates = this.allMapLocations.find(location => location.lat && location.lng);
-                    if (locationWithCoordinates) {
-                        return {
-                            center: [locationWithCoordinates.lat, locationWithCoordinates.lng],
-                            zoom: 11
-                        };
-                    }
-
-                    const firstKnownAddress = this.allMapLocations.find(location => location.address);
-                    if (firstKnownAddress) {
-                        const normalizedAddress = firstKnownAddress.address.trim().toLowerCase();
-                        const cached = this.geocodeCache[normalizedAddress];
-                        if (cached) {
-                            return {
-                                center: [cached.lat, cached.lng],
-                                zoom: 11
-                            };
-                        }
-                    }
-
-                    return {
-                        center: [35.6764, 139.6500],
-                        zoom: 5
-                    };
                 },
                 async ensureCoordinatesForLocation(location) {
                     if (!location?.address) return null;
@@ -1325,7 +1276,7 @@
                             icon: this.createMarkerIcon(location.icon)
                         }).addTo(this.map);
                         const popupHtml = `
-                            <div style="min-width:180px;max-width:220px;word-break:break-word;">
+                            <div style="min-width:180px;">
                                 <div style="font-weight:600;margin-bottom:4px;">${location.name}</div>
                                 <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">${location.address}</div>
                                 <div style="font-size:12px;color:#857868;">${location.source || '地點'}</div>
@@ -1341,9 +1292,18 @@
                     } else if (markerBounds.length > 1) {
                         this.map.fitBounds(markerBounds, { padding: [30, 30] });
                     } else {
-                        const preferred = this.getPreferredMapCenter();
-                        this.map.setView(preferred.center, preferred.zoom);
+                        const defaultCenter = this.getPreferredMapCenter();
+                        if (defaultCenter) {
+                            this.map.setView([defaultCenter.lat, defaultCenter.lng], defaultCenter.zoom || 11);
+                        }
                     }
+                },
+                getPreferredMapCenter() {
+                    const preferredLocation = this.savedLocations[0] || this.itineraryLocations[0] || this.linkMapLocations[0] || null;
+                    if (preferredLocation?.lat && preferredLocation?.lng) {
+                        return { lat: preferredLocation.lat, lng: preferredLocation.lng, zoom: 13 };
+                    }
+                    return { lat: 35.6762, lng: 139.6503, zoom: 11 };
                 },
                 fitMapToMarkers() {
                     if (!this.map || this.leafletMarkers.length === 0) {
@@ -1392,7 +1352,7 @@
                     this.trips = Array.isArray(data.trips) ? data.trips : [];
                     this.savedLocations = Array.isArray(data.savedLocations) ? data.savedLocations : [];
                     this.expenses = Array.isArray(data.expenses)
-                        ? data.expenses.map(expense => ({ ...expense, group: expense.group || 'personal' }))
+                        ? data.expenses.map(expense => ({ ...expense, groupId: expense.groupId || 'personal' }))
                         : [];
                     this.savedLinks = Array.isArray(data.savedLinks) ? data.savedLinks : [];
                     this.geocodeCache = data.geocodeCache || {};
@@ -1410,13 +1370,48 @@
                     }
                 },
                 saveToStorage() {
-                    this.saveToLocalStorage();
+                    const data = this.serializeData();
+                    if (this.firebaseInitialized && database) {
+                        this.isSyncing = true;
+                        database.ref('travelApp').set(data).then(() => {
+                            this.isSyncing = false;
+                        }).catch(() => {
+                            this.isSyncing = false;
+                            this.saveToLocalStorage();
+                        });
+                    } else {
+                        this.saveToLocalStorage();
+                    }
                 },
                 saveToLocalStorage() {
                     localStorage.setItem('travelAppData', JSON.stringify(this.serializeData()));
                 },
                 loadFromStorage() {
-                    this.loadFromLocalStorage();
+                    if (this.firebaseInitialized && database) {
+                        this.isSyncing = true;
+                        database.ref('travelApp').once('value').then((snapshot) => {
+                            const data = snapshot.val();
+                            if (data) {
+                                this.hydrateData(data);
+                            } else {
+                                this.loadFromLocalStorage();
+                            }
+                            this.isSyncing = false;
+                            this.$nextTick(() => this.refreshMapMarkers());
+                        }).catch(() => {
+                            this.loadFromLocalStorage();
+                            this.isSyncing = false;
+                        });
+
+                        database.ref('travelApp').on('value', (snapshot) => {
+                            const data = snapshot.val();
+                            if (!data) return;
+                            this.hydrateData(data);
+                            this.$nextTick(() => this.refreshMapMarkers());
+                        });
+                    } else {
+                        this.loadFromLocalStorage();
+                    }
                 },
                 loadFromLocalStorage() {
                     const data = JSON.parse(localStorage.getItem('travelAppData') || '{}');
@@ -1439,15 +1434,20 @@
                 },
                 allMapLocations: {
                     handler() {
-                        if (this.map && this.activeTab === 'map') {
+                        if (this.map) {
                             this.refreshMapMarkers();
                         }
                     },
-                    deep: false
+                    deep: true
                 }
             },
             mounted() {
                 this.loadFromStorage();
+                this.$nextTick(() => {
+                    if (this.activeTab === 'map') {
+                        this.initMap();
+                    }
+                });
             }
         }).mount('#app');
     </script>
