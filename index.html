@@ -255,11 +255,11 @@
                 <div v-if="savedLocations.length === 0" class="text-center py-10 bg-white rounded-2xl card-shadow text-morandy-500">
                     目前還沒有收藏地點
                 </div>
-                <div v-for="(location, index) in savedLocations" :key="location.id || index" class="clickable-card bg-white rounded-2xl p-4 mb-3 card-shadow flex items-center gap-4">
+                <div v-for="(location, index) in savedLocations" :key="location.id || index" class="bg-white rounded-2xl p-4 mb-3 card-shadow flex items-center gap-4">
                     <div class="w-12 h-12 rounded-xl bg-morandy-100 flex items-center justify-center text-morandy-600">
                         <i :class="location.icon || 'fas fa-map-marker-alt'"></i>
                     </div>
-                    <div class="flex-1 min-w-0">
+                    <div class="flex-1 min-w-0 cursor-pointer" @click="focusLocationOnMap(location)">
                         <div class="flex items-center gap-2">
                             <p class="font-medium text-morandy-800">{{ location.name }}</p>
                             <span v-if="location.source" class="px-2 py-0.5 rounded-full text-xs bg-morandy-100 text-morandy-600">{{ location.source }}</span>
@@ -267,16 +267,19 @@
                         <p class="text-sm text-morandy-500 truncate">{{ location.address }}</p>
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">
+                        <button @click="editLocation(index)" class="w-10 h-10 rounded-full bg-morandy-100 text-morandy-600 flex items-center justify-center hover:bg-morandy-200 transition-colors">
+                            <i class="fas fa-pen"></i>
+                        </button>
                         <button @click="focusLocationOnMap(location)" class="w-10 h-10 rounded-full bg-morandy-100 text-morandy-600 flex items-center justify-center hover:bg-morandy-200 transition-colors">
                             <i class="fas fa-location-arrow"></i>
                         </button>
-                        <a :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(location.address)" target="_blank" @click.stop class="w-10 h-10 rounded-full bg-morandy-600 text-white flex items-center justify-center hover:bg-morandy-700 transition-colors">
-                            <i class="fas fa-directions"></i>
-                        </a>
+                        <button @click="removeLocation(index)" class="w-10 h-10 rounded-full bg-red-50 text-red-400 flex items-center justify-center hover:bg-red-100 transition-colors">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                 </div>
 
-                <button @click="showAddLocation = true" class="w-full py-3 border-2 border-dashed border-morandy-300 rounded-2xl text-morandy-500 hover:border-morandy-500 hover:text-morandy-700 transition-colors">
+                <button @click="openLocationModal()" class="w-full py-3 border-2 border-dashed border-morandy-300 rounded-2xl text-morandy-500 hover:border-morandy-500 hover:text-morandy-700 transition-colors">
                     <i class="fas fa-plus mr-2"></i>新增地點
                 </button>
             </div>
@@ -537,8 +540,8 @@
         <div v-if="showAddLocation" class="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
             <div class="bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-morandy-800">新增地點</h3>
-                    <button @click="showAddLocation = false" class="w-8 h-8 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600">
+                    <h3 class="text-lg font-semibold text-morandy-800">{{ editingLocationIndex === null ? '新增地點' : '編輯地點' }}</h3>
+                    <button @click="closeLocationModal" class="w-8 h-8 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -665,6 +668,7 @@
                     firebaseInitialized: firebaseInitialized,
                     editingTripIndex: null,
                     editingLinkIndex: null,
+                    editingLocationIndex: null,
                     selectedShoppingGroupId: 'default',
                     newShoppingGroupName: '',
                     map: null,
@@ -782,6 +786,34 @@
                 openLink(url) {
                     window.open(url, '_blank', 'noopener');
                 },
+                openLocationModal() {
+                    this.editingLocationIndex = null;
+                    this.newLocation = { name: '', address: '', icon: 'fas fa-map-marker-alt' };
+                    this.showAddLocation = true;
+                },
+                closeLocationModal() {
+                    this.showAddLocation = false;
+                    this.editingLocationIndex = null;
+                    this.newLocation = { name: '', address: '', icon: 'fas fa-map-marker-alt' };
+                },
+                editLocation(index) {
+                    this.editingLocationIndex = index;
+                    this.newLocation = {
+                        name: this.savedLocations[index].name,
+                        address: this.savedLocations[index].address,
+                        icon: this.savedLocations[index].icon || 'fas fa-map-marker-alt'
+                    };
+                    this.showAddLocation = true;
+                },
+                async removeLocation(index) {
+                    const [removedLocation] = this.savedLocations.splice(index, 1);
+                    if (removedLocation?.address) {
+                        delete this.geocodeCache[removedLocation.address.trim().toLowerCase()];
+                    }
+                    this.saveToStorage();
+                    this.refreshMapMarkers();
+                    this.showToastMessage('地點已刪除');
+                },
                 closeTripModal() {
                     this.showAddTrip = false;
                     this.editingTripIndex = null;
@@ -835,19 +867,32 @@
                         return;
                     }
                     const location = {
-                        id: this.makeId('location'),
+                        id: this.editingLocationIndex !== null ? this.savedLocations[this.editingLocationIndex].id : this.makeId('location'),
                         name: this.newLocation.name,
                         address: this.newLocation.address,
                         icon: this.newLocation.icon || 'fas fa-map-marker-alt',
                         source: '收藏'
                     };
-                    this.savedLocations.push(location);
-                    this.newLocation = { name: '', address: '', icon: 'fas fa-map-marker-alt' };
-                    this.showAddLocation = false;
-                    this.showToastMessage('地點已新增');
+                    if (this.editingLocationIndex !== null) {
+                        this.savedLocations[this.editingLocationIndex] = {
+                            ...this.savedLocations[this.editingLocationIndex],
+                            ...location,
+                            lat: undefined,
+                            lng: undefined
+                        };
+                        this.showToastMessage('地點已更新');
+                    } else {
+                        this.savedLocations.push(location);
+                        this.showToastMessage('地點已新增');
+                    }
+                    this.closeLocationModal();
                     this.saveToStorage();
-                    await this.ensureCoordinatesForLocation(location);
+                    const targetLocation = this.editingLocationIndex !== null
+                        ? this.savedLocations[this.editingLocationIndex]
+                        : this.savedLocations[this.savedLocations.length - 1];
+                    await this.ensureCoordinatesForLocation(targetLocation);
                     this.refreshMapMarkers();
+                    this.focusLocationOnMap(targetLocation);
                 },
                 getCategoryBg(category) {
                     return 'bg-morandy-200 text-morandy-700';
@@ -1222,7 +1267,14 @@
                         if (!this.map) this.initMap();
                         await this.ensureCoordinatesForLocation(location);
                         if (location.lat && location.lng) {
-                            this.map.setView([location.lat, location.lng], 14);
+                            this.map.setView([location.lat, location.lng], 16);
+                            const matchedMarker = this.leafletMarkers.find(marker => {
+                                const latlng = marker.getLatLng();
+                                return Math.abs(latlng.lat - location.lat) < 0.00001 && Math.abs(latlng.lng - location.lng) < 0.00001;
+                            });
+                            if (matchedMarker) {
+                                matchedMarker.openPopup();
+                            }
                         } else {
                             this.showToastMessage('暫時找不到這個地點座標');
                         }
