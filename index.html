@@ -25,13 +25,6 @@
 
         let database = null;
         let firebaseInitialized = false;
-        try {
-            firebase.initializeApp(firebaseConfig);
-            database = firebase.database();
-            firebaseInitialized = true;
-        } catch (e) {
-            console.log('Firebase 初始化失敗，將使用本地儲存模式');
-        }
 
         tailwind.config = {
             theme: {
@@ -138,21 +131,7 @@
                     <h1 class="text-xl font-bold text-morandy-800">旅行趣</h1>
                     <p class="text-xs text-morandy-500">{{ currentDate }}</p>
                 </div>
-                <div class="flex items-center gap-3">
-                    <div v-if="showSyncStatus" class="flex items-center gap-2">
-                        <span v-if="isSyncing" class="flex items-center gap-1 text-xs text-morandy-500">
-                            <i class="fas fa-sync-alt fa-spin"></i>
-                            同步中
-                        </span>
-                        <span v-else-if="firebaseReady" class="flex items-center gap-1 text-xs text-green-500">
-                            <span class="w-2 h-2 bg-green-500 rounded-full online-indicator"></span>
-                            已連線
-                        </span>
-                        <span v-else class="flex items-center gap-1 text-xs text-morandy-400">
-                            <span class="w-2 h-2 bg-morandy-300 rounded-full"></span>
-                            本機模式
-                        </span>
-                    </div>
+                    <div class="flex items-center gap-3">
                     <button @click="showWeather = !showWeather" class="w-10 h-10 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600 hover:bg-morandy-200 transition-colors">
                         <i class="fas fa-cloud-sun text-lg"></i>
                     </button>
@@ -703,11 +682,11 @@
                     showWeather: false,
                     userInitial: 'U',
                     isSyncing: false,
-                    showSyncStatus: firebaseInitialized,
+                    showSyncStatus: false,
                     syncTimeoutId: null,
                     firebaseReady: false,
                     firebaseListenerAttached: false,
-                    firebaseSyncEnabled: firebaseInitialized,
+                    firebaseSyncEnabled: false,
                     editingTripIndex: null,
                     editingLinkIndex: null,
                     editingLocationIndex: null,
@@ -1431,53 +1410,13 @@
                     }
                 },
                 saveToStorage() {
-                    const data = this.serializeData();
                     this.saveToLocalStorage();
-                    if (this.firebaseSyncEnabled && database) {
-                        this.beginSyncState();
-                        database.ref('travelApp').set(data).then(() => {
-                            this.firebaseReady = true;
-                            this.endSyncState();
-                        }).catch(() => {
-                            this.enableLocalMode();
-                        });
-                    }
                 },
                 saveToLocalStorage() {
                     localStorage.setItem('travelAppData', JSON.stringify(this.serializeData()));
                 },
                 loadFromStorage() {
                     this.loadFromLocalStorage();
-
-                    if (this.firebaseSyncEnabled && database) {
-                        this.beginSyncState();
-
-                        database.ref('travelApp').once('value').then((snapshot) => {
-                            const data = snapshot.val();
-                            if (data) {
-                                this.hydrateData(data);
-                                this.$nextTick(() => this.refreshMapMarkers());
-                            }
-                            this.firebaseReady = true;
-                            this.endSyncState();
-                        }).catch(() => {
-                            this.enableLocalMode();
-                        });
-
-                        if (!this.firebaseListenerAttached) {
-                            database.ref('travelApp').on('value', (snapshot) => {
-                                const data = snapshot.val();
-                                if (!data) return;
-                                this.firebaseReady = true;
-                                this.endSyncState();
-                                this.hydrateData(data);
-                                this.$nextTick(() => this.refreshMapMarkers());
-                            }, () => {
-                                this.enableLocalMode();
-                            });
-                            this.firebaseListenerAttached = true;
-                        }
-                    }
                 },
                 loadFromLocalStorage() {
                     const data = JSON.parse(localStorage.getItem('travelAppData') || '{}');
@@ -1509,11 +1448,6 @@
             },
             mounted() {
                 this.loadFromStorage();
-                this.$nextTick(() => {
-                    if (this.activeTab === 'map') {
-                        this.initMap();
-                    }
-                });
             }
         }).mount('#app');
     </script>
