@@ -8,7 +8,32 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <script>
+        // Firebase 設定 - 請替換成你自己的設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyDemo-Replace-With-Your-Own",
+            authDomain: "your-project.firebaseapp.com",
+            databaseURL: "https://your-project-default-rtdb.firebaseio.com",
+            projectId: "your-project",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
+        };
+
+        // 初始化 Firebase
+        let database = null;
+        let firebaseInitialized = false;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            firebaseInitialized = true;
+        } catch (e) {
+            console.log('Firebase 初始化失敗，將使用本地儲存模式');
+        }
+
         tailwind.config = {
             theme: {
                 extend: {
@@ -68,6 +93,21 @@
             background: #b8ada3;
             border-radius: 4px;
         }
+        .clickable-card {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .clickable-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+        .online-indicator {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body class="bg-morandy-50">
@@ -80,7 +120,18 @@
                     <p class="text-xs text-morandy-500">{{ currentDate }}</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button @click="showWeather = !showWeather" class="w-10 h-10 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600">
+                    <!-- 共同編輯狀態 -->
+                    <div v-if="firebaseInitialized" class="flex items-center gap-2">
+                        <span v-if="isSyncing" class="flex items-center gap-1 text-xs text-morandy-500">
+                            <i class="fas fa-sync-alt fa-spin"></i>
+                            同步中
+                        </span>
+                        <span v-else class="flex items-center gap-1 text-xs text-green-500">
+                            <span class="w-2 h-2 bg-green-500 rounded-full online-indicator"></span>
+                            已連線
+                        </span>
+                    </div>
+                    <button @click="showWeather = !showWeather" class="w-10 h-10 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600 hover:bg-morandy-200 transition-colors">
                         <i class="fas fa-cloud-sun text-lg"></i>
                     </button>
                     <div class="w-10 h-10 rounded-full bg-morandy-300 flex items-center justify-center text-white font-medium">
@@ -134,10 +185,10 @@
                             <p class="text-sm text-morandy-500">{{ trip.date }}</p>
                         </div>
                         <div class="flex gap-2">
-                            <button @click="editTrip(index)" class="w-8 h-8 rounded-lg bg-morandy-100 flex items-center justify-center text-morandy-600">
+                            <button @click="editTrip(index)" class="w-8 h-8 rounded-lg bg-morandy-100 flex items-center justify-center text-morandy-600 hover:bg-morandy-200 transition-colors">
                                 <i class="fas fa-edit text-sm"></i>
                             </button>
-                            <button @click="deleteTrip(index)" class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-400">
+                            <button @click="deleteTrip(index)" class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-400 hover:bg-red-100 transition-colors">
                                 <i class="fas fa-trash text-sm"></i>
                             </button>
                         </div>
@@ -183,15 +234,15 @@
 
                 <!-- Saved Locations -->
                 <h3 class="font-semibold text-morandy-800 mt-6 mb-3">已儲存的地點</h3>
-                <div v-for="(location, index) in savedLocations" :key="index" class="bg-white rounded-2xl p-4 mb-3 card-shadow flex items-center gap-4">
+                <div v-for="(location, index) in savedLocations" :key="index" class="clickable-card bg-white rounded-2xl p-4 mb-3 card-shadow flex items-center gap-4">
                     <div class="w-12 h-12 rounded-xl bg-morandy-100 flex items-center justify-center text-morandy-600">
                         <i :class="location.icon || 'fas fa-map-marker-alt'"></i>
                     </div>
-                    <div class="flex-1">
+                    <div class="flex-1 min-w-0">
                         <p class="font-medium text-morandy-800">{{ location.name }}</p>
-                        <p class="text-sm text-morandy-500">{{ location.address }}</p>
+                        <p class="text-sm text-morandy-500 truncate">{{ location.address }}</p>
                     </div>
-                    <a :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(location.address)" target="_blank" class="w-10 h-10 rounded-full bg-morandy-600 text-white flex items-center justify-center hover:bg-morandy-700 transition-colors">
+                    <a :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(location.address)" target="_blank" @click.stop class="w-10 h-10 rounded-full bg-morandy-600 text-white flex items-center justify-center hover:bg-morandy-700 transition-colors flex-shrink-0">
                         <i class="fas fa-directions"></i>
                     </a>
                 </div>
@@ -245,7 +296,7 @@
                     </div>
                 </div>
 
-                <button @click="showAddExpense = true" class="fixed bottom-24 right-5 w-14 h-14 bg-morandy-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-morandy-700 transition-colors">
+                <button @click="showAddExpense = true" class="fixed bottom-24 right-5 w-14 h-14 bg-morandy-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-morandy-700 transition-colors z-30">
                     <i class="fas fa-plus text-xl"></i>
                 </button>
             </div>
@@ -279,14 +330,14 @@
                 </div>
 
                 <div v-for="(item, index) in shoppingList" :key="index" :class="['bg-white rounded-2xl p-4 mb-3 card-shadow flex items-center gap-3 transition-all', item.completed ? 'opacity-60' : '']">
-                    <button @click="toggleShoppingItem(index)" class="w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors" :class="item.completed ? 'bg-morandy-600 border-morandy-600 text-white' : 'border-morandy-300'">
+                    <button @click="toggleShoppingItem(index)" class="w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0" :class="item.completed ? 'bg-morandy-600 border-morandy-600 text-white' : 'border-morandy-300'">
                         <i :class="item.completed ? 'fas fa-check' : ''"></i>
                     </button>
-                    <div class="flex-1">
-                        <p :class="['font-medium transition-all', item.completed ? 'line-through text-morandy-400' : 'text-morandy-800']">{{ item.name }}</p>
+                    <div class="flex-1 min-w-0">
+                        <p :class="['font-medium transition-all truncate', item.completed ? 'line-through text-morandy-400' : 'text-morandy-800']">{{ item.name }}</p>
                     </div>
-                    <span class="px-2 py-1 bg-morandy-100 rounded-lg text-sm text-morandy-600">x{{ item.quantity }}</span>
-                    <button @click="removeShoppingItem(index)" class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-400 hover:bg-red-100 transition-colors">
+                    <span class="px-2 py-1 bg-morandy-100 rounded-lg text-sm text-morandy-600 flex-shrink-0">x{{ item.quantity }}</span>
+                    <button @click="removeShoppingItem(index)" class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-400 hover:bg-red-100 transition-colors flex-shrink-0">
                         <i class="fas fa-times text-sm"></i>
                     </button>
                 </div>
@@ -309,18 +360,19 @@
                     <p class="text-sm text-morandy-400 mt-1">加入旅遊相關連結，自動擷取資訊</p>
                 </div>
 
-                <div v-for="(link, index) in savedLinks" :key="index" class="bg-white rounded-2xl p-4 mb-3 card-shadow">
+                <!-- 連結卡片 - 點擊整張卡片即可開啟 -->
+                <div v-for="(link, index) in savedLinks" :key="index" @click="openLink(link.url)" class="clickable-card bg-white rounded-2xl p-4 mb-3 card-shadow">
                     <div class="flex items-start gap-3 mb-3">
-                        <div class="w-12 h-12 rounded-xl bg-morandy-100 flex items-center justify-center text-morandy-600">
+                        <div class="w-12 h-12 rounded-xl bg-morandy-100 flex items-center justify-center text-morandy-600 flex-shrink-0">
                             <i class="fas fa-globe"></i>
                         </div>
-                        <div class="flex-1">
+                        <div class="flex-1 min-w-0">
                             <h3 class="font-medium text-morandy-800">{{ link.title }}</h3>
                             <p class="text-sm text-morandy-500 truncate">{{ link.url }}</p>
                         </div>
-                        <a :href="link.url" target="_blank" class="px-3 py-1 bg-morandy-100 text-morandy-600 rounded-lg text-sm hover:bg-morandy-200 transition-colors">
+                        <div class="w-10 h-10 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-500 flex-shrink-0">
                             <i class="fas fa-external-link-alt"></i>
-                        </a>
+                        </div>
                     </div>
                     <div v-if="link.description" class="p-3 bg-morandy-50 rounded-xl mb-3">
                         <p class="text-sm text-morandy-600">{{ link.description }}</p>
@@ -329,7 +381,7 @@
                     <div class="flex items-center gap-2 mb-2">
                         <span class="text-sm text-morandy-600">評價：</span>
                         <div class="flex gap-1">
-                            <button v-for="star in 5" :key="star" @click="updateLinkRating(index, star)" class="text-lg transition-colors" :class="star <= link.rating ? 'text-yellow-400' : 'text-morandy-300'">
+                            <button v-for="star in 5" :key="star" @click.stop="updateLinkRating(index, star)" class="text-lg transition-colors" :class="star <= link.rating ? 'text-yellow-400' : 'text-morandy-300'">
                                 <i :class="star <= link.rating ? 'fas' : 'far', 'fa-star'"></i>
                             </button>
                         </div>
@@ -339,7 +391,7 @@
                         <i class="fas fa-map-marker-alt"></i>
                         <span>{{ link.location }}</span>
                     </div>
-                    <button @click="removeLink(index)" class="mt-3 text-sm text-red-400 hover:text-red-500 transition-colors">
+                    <button @click.stop="removeLink(index)" class="mt-3 text-sm text-red-400 hover:text-red-500 transition-colors">
                         <i class="fas fa-trash mr-1"></i>刪除
                     </button>
                 </div>
@@ -464,7 +516,7 @@
                     <div>
                         <label class="block text-sm text-morandy-600 mb-1">類別</label>
                         <select v-model="newExpense.category" class="w-full px-4 py-3 bg-morandy-50 rounded-xl text-morandy-800 focus:outline-none focus:ring-2 focus:ring-morandy-300">
-                            <option v-for="cat in expenseCategories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                            <option v-for="cat in expenseCategories.filter(c => c.id !== 'all')" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
                         </select>
                     </div>
                     <div>
@@ -537,6 +589,8 @@
                     activeTab: 'itinerary',
                     showWeather: false,
                     userInitial: 'U',
+                    isSyncing: false,
+                    firebaseInitialized: firebaseInitialized,
 
                     // Tabs
                     tabs: [
@@ -619,6 +673,11 @@
                     setTimeout(() => this.showToast = false, 2000);
                 },
 
+                // Open Link
+                openLink(url) {
+                    window.open(url, '_blank');
+                },
+
                 // Trips
                 saveTrip() {
                     if (!this.newTrip.name || !this.newTrip.date) {
@@ -673,14 +732,14 @@
                 // Expense
                 getCategoryBg(category) {
                     const colors = {
-                        food: 'bg-orange-100 text-orange-500',
-                        transport: 'bg-blue-100 text-blue-500',
-                        hotel: 'bg-purple-100 text-purple-500',
-                        shopping: 'bg-pink-100 text-pink-500',
-                        ticket: 'bg-green-100 text-green-500',
-                        other: 'bg-gray-100 text-gray-500'
+                        food: 'bg-morandy-200 text-morandy-700',
+                        transport: 'bg-morandy-200 text-morandy-700',
+                        hotel: 'bg-morandy-200 text-morandy-700',
+                        shopping: 'bg-morandy-200 text-morandy-700',
+                        ticket: 'bg-morandy-200 text-morandy-700',
+                        other: 'bg-morandy-200 text-morandy-700'
                     };
-                    return colors[category] || 'bg-morandy-100 text-morandy-500';
+                    return colors[category] || 'bg-morandy-200 text-morandy-700';
                 },
                 getCategoryIcon(category) {
                     const icons = {
@@ -757,6 +816,27 @@
 
                 // Storage
                 saveToStorage() {
+                    if (this.firebaseInitialized && database) {
+                        this.isSyncing = true;
+                        const data = {
+                            trips: this.trips,
+                            savedLocations: this.savedLocations,
+                            expenses: this.expenses,
+                            shoppingList: this.shoppingList,
+                            savedLinks: this.savedLinks,
+                            lastUpdated: Date.now()
+                        };
+                        database.ref('travelApp').set(data).then(() => {
+                            this.isSyncing = false;
+                        }).catch(() => {
+                            this.isSyncing = false;
+                            this.saveToLocalStorage();
+                        });
+                    } else {
+                        this.saveToLocalStorage();
+                    }
+                },
+                saveToLocalStorage() {
                     const data = {
                         trips: this.trips,
                         savedLocations: this.savedLocations,
@@ -767,6 +847,29 @@
                     localStorage.setItem('travelAppData', JSON.stringify(data));
                 },
                 loadFromStorage() {
+                    if (this.firebaseInitialized && database) {
+                        this.isSyncing = true;
+                        database.ref('travelApp').once('value').then((snapshot) => {
+                            const data = snapshot.val();
+                            if (data) {
+                                if (data.trips) this.trips = data.trips;
+                                if (data.savedLocations) this.savedLocations = data.savedLocations;
+                                if (data.expenses) this.expenses = data.expenses;
+                                if (data.shoppingList) this.shoppingList = data.shoppingList;
+                                if (data.savedLinks) this.savedLinks = data.savedLinks;
+                            } else {
+                                this.loadFromLocalStorage();
+                            }
+                            this.isSyncing = false;
+                        }).catch(() => {
+                            this.loadFromLocalStorage();
+                            this.isSyncing = false;
+                        });
+                    } else {
+                        this.loadFromLocalStorage();
+                    }
+                },
+                loadFromLocalStorage() {
                     const data = JSON.parse(localStorage.getItem('travelAppData') || '{}');
                     if (data.trips) this.trips = data.trips;
                     if (data.savedLocations) this.savedLocations = data.savedLocations;
