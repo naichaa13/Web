@@ -139,14 +139,18 @@
                     <p class="text-xs text-morandy-500">{{ currentDate }}</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <div v-if="firebaseInitialized" class="flex items-center gap-2">
+                    <div v-if="firebaseSyncEnabled" class="flex items-center gap-2">
                         <span v-if="isSyncing" class="flex items-center gap-1 text-xs text-morandy-500">
                             <i class="fas fa-sync-alt fa-spin"></i>
                             同步中
                         </span>
-                        <span v-else class="flex items-center gap-1 text-xs text-green-500">
+                        <span v-else-if="firebaseReady" class="flex items-center gap-1 text-xs text-green-500">
                             <span class="w-2 h-2 bg-green-500 rounded-full online-indicator"></span>
                             已連線
+                        </span>
+                        <span v-else class="flex items-center gap-1 text-xs text-morandy-400">
+                            <span class="w-2 h-2 bg-morandy-300 rounded-full"></span>
+                            本機模式
                         </span>
                     </div>
                     <button @click="showWeather = !showWeather" class="w-10 h-10 rounded-full bg-morandy-100 flex items-center justify-center text-morandy-600 hover:bg-morandy-200 transition-colors">
@@ -699,7 +703,10 @@
                     showWeather: false,
                     userInitial: 'U',
                     isSyncing: false,
-                    firebaseInitialized: firebaseInitialized,
+                    syncTimeoutId: null,
+                    firebaseReady: false,
+                    firebaseListenerAttached: false,
+                    firebaseSyncEnabled: firebaseInitialized,
                     editingTripIndex: null,
                     editingLinkIndex: null,
                     editingLocationIndex: null,
@@ -828,6 +835,24 @@
                 }
             },
             methods: {
+                beginSyncState() {
+                    this.isSyncing = true;
+                    clearTimeout(this.syncTimeoutId);
+                    this.syncTimeoutId = setTimeout(() => {
+                        this.isSyncing = false;
+                    }, 6000);
+                },
+                endSyncState() {
+                    clearTimeout(this.syncTimeoutId);
+                    this.syncTimeoutId = null;
+                    this.isSyncing = false;
+                },
+                enableLocalMode() {
+                    this.firebaseSyncEnabled = false;
+                    this.firebaseReady = false;
+                    this.endSyncState();
+                    this.saveToLocalStorage();
+                },
                 showToastMessage(msg) {
                     this.toastMessage = msg;
                     this.showToast = true;
@@ -1403,24 +1428,23 @@
                 },
                 saveToStorage() {
                     const data = this.serializeData();
-                    if (this.firebaseInitialized && database) {
-                        this.isSyncing = true;
+                    this.saveToLocalStorage();
+                    if (this.firebaseSyncEnabled && database) {
+                        this.beginSyncState();
                         database.ref('travelApp').set(data).then(() => {
-                            this.isSyncing = false;
+                            this.firebaseReady = true;
+                            this.endSyncState();
                         }).catch(() => {
-                            this.isSyncing = false;
-                            this.saveToLocalStorage();
+                            this.enableLocalMode();
                         });
-                    } else {
-                        this.saveToLocalStorage();
                     }
                 },
                 saveToLocalStorage() {
                     localStorage.setItem('travelAppData', JSON.stringify(this.serializeData()));
                 },
                 loadFromStorage() {
-                    if (this.firebaseInitialized && database) {
-                        this.isSyncing = true;
+                    if (this.firebaseSyncEnabled && database) {
+                        this.beginSyncState();
                         database.ref('travelApp').once('value').then((snapshot) => {
                             const data = snapshot.val();
                             if (data) {
@@ -1428,19 +1452,27 @@
                             } else {
                                 this.loadFromLocalStorage();
                             }
-                            this.isSyncing = false;
+                            this.firebaseReady = true;
+                            this.endSyncState();
                             this.$nextTick(() => this.refreshMapMarkers());
                         }).catch(() => {
                             this.loadFromLocalStorage();
-                            this.isSyncing = false;
+                            this.enableLocalMode();
                         });
 
-                        database.ref('travelApp').on('value', (snapshot) => {
-                            const data = snapshot.val();
-                            if (!data) return;
-                            this.hydrateData(data);
-                            this.$nextTick(() => this.refreshMapMarkers());
-                        });
+                        if (!this.firebaseListenerAttached) {
+                            database.ref('travelApp').on('value', (snapshot) => {
+                                const data = snapshot.val();
+                                if (!data) return;
+                                this.firebaseReady = true;
+                                this.endSyncState();
+                                this.hydrateData(data);
+                                this.$nextTick(() => this.refreshMapMarkers());
+                            }, () => {
+                                this.enableLocalMode();
+                            });
+                            this.firebaseListenerAttached = true;
+                        }
                     } else {
                         this.loadFromLocalStorage();
                     }
