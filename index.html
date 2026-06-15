@@ -11,12 +11,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="" />
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyCKBz1CQkh5CtIeZmuLpUm6N5PU-6LsXns",
@@ -163,21 +160,6 @@
             font-size: 14px;
         }
 
-        .cluster-icon {
-            border-radius: 999px;
-            background: linear-gradient(135deg, #99816f 0%, #7f695a 100%);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            box-shadow: 0 8px 24px rgba(95, 78, 67, 0.3);
-            border: 3px solid rgba(255,255,255,0.95);
-        }
-        .cluster-small { width: 36px; height: 36px; font-size: 13px; }
-        .cluster-medium { width: 44px; height: 44px; font-size: 15px; }
-        .cluster-large { width: 52px; height: 52px; font-size: 17px; }
-
         .leaflet-popup-content-wrapper {
             border-radius: 16px;
         }
@@ -206,7 +188,7 @@
         <header class="sticky top-0 z-40 px-4 pt-4 pb-3 bg-white/75 backdrop-blur-xl border-b border-white/60">
             <div class="rounded-[28px] bg-gradient-to-br from-white via-white to-morandi-100 shadow-soft px-4 py-4">
                 <div class="flex items-start justify-between gap-3">
-                    <div>
+                    <div class="min-w-0">
                         <p class="text-xs tracking-[0.18em] uppercase text-morandi-400">Travel planner</p>
                         <h1 class="text-2xl font-semibold text-morandi-800">旅行趣</h1>
                         <p class="text-sm text-morandi-500 mt-1">{{ currentDate }}</p>
@@ -285,14 +267,7 @@
                                     <p v-if="item.location" class="text-sm text-morandi-500 mt-1 break-words">{{ item.location }}</p>
                                     <p v-if="item.weather" class="text-xs text-morandi-400 mt-1">{{ item.weather }}</p>
                                 </div>
-                                <div class="flex items-center gap-1 shrink-0">
-                                    <button v-if="item.location" @click="focusLocationOnMap(makeTripLocation(item))" class="px-2 py-1.5 rounded-xl bg-morandi-100 text-morandi-700 text-xs">
-                                        <i class="fas fa-map text-xs"></i>
-                                    </button>
-                                    <button v-if="item.location" @click="openGoogleMapsNavigation(item.location)" class="px-2 py-1.5 rounded-xl bg-sky-50 text-sky-600 text-xs">
-                                        <i class="fas fa-route text-xs"></i>
-                                    </button>
-                                </div>
+                                <button v-if="item.location" @click="focusLocationOnMap(makeTripLocation(item))" class="text-morandi-600 text-sm shrink-0">地圖</button>
                             </div>
                         </div>
                     </div>
@@ -307,12 +282,7 @@
                         <h2 class="text-lg font-semibold text-morandi-800">地圖</h2>
                         <p class="text-sm text-morandi-500 mt-1">行程、收藏、連結地點會一起顯示</p>
                     </div>
-                    <div class="flex gap-2">
-                        <button @click="toggleRoute" :class="['px-4 py-2 rounded-2xl text-sm transition', showRoute ? 'bg-morandi-700 text-white' : 'bg-white text-morandi-700 shadow-soft']">
-                            <i class="fas fa-route mr-1"></i>路線
-                        </button>
-                        <button @click="fitMapToLocations" class="px-4 py-2 rounded-2xl bg-white text-morandi-700 shadow-soft text-sm">定位</button>
-                    </div>
+                    <button @click="fitMapToLocations" class="px-4 py-2 rounded-2xl bg-white text-morandi-700 shadow-soft text-sm">定位全部</button>
                 </div>
 
                 <div class="rounded-[28px] bg-white p-3 shadow-soft overflow-hidden">
@@ -354,7 +324,6 @@
                             <p class="text-sm text-morandi-500 mt-1 break-words">{{ location.address }}</p>
                         </button>
                         <div class="flex flex-col gap-2 shrink-0">
-                            <button @click="openGoogleMapsNavigation(location.address)" class="w-9 h-9 rounded-2xl bg-sky-50 text-sky-600"><i class="fas fa-route text-sm"></i></button>
                             <button @click="editLocation(index)" class="w-9 h-9 rounded-2xl bg-morandi-100 text-morandi-700"><i class="fas fa-pen text-sm"></i></button>
                             <button @click="removeLocation(index)" class="w-9 h-9 rounded-2xl bg-red-50 text-red-400"><i class="fas fa-trash text-sm"></i></button>
                         </div>
@@ -380,20 +349,9 @@
                         <button @click="createExpenseGroup" class="px-4 py-3 rounded-2xl bg-morandi-700 text-white text-sm">新增分組</button>
                     </div>
 
-                    <div class="space-y-2">
-                        <div v-for="group in expenseGroups" :key="group.id" class="flex items-center">
-                            <button @click="selectedExpenseGroupId = group.id" :class="['w-full min-h-[52px] rounded-2xl px-4 py-3 text-sm font-medium text-left transition', selectedExpenseGroupId === group.id ? 'bg-morandi-700 text-white font-semibold' : 'bg-morandi-50 text-morandi-800']">
-                                {{ group.name }}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div v-if="selectedExpenseGroup && selectedExpenseGroup.id !== 'personal' && selectedExpenseGroup.id !== 'shared'" class="flex gap-2">
-                        <button @click="renameExpenseGroup(selectedExpenseGroup)" class="flex-1 px-4 py-3 rounded-2xl bg-morandi-100 text-morandi-700 text-sm font-medium">
-                            <i class="fas fa-pen mr-1"></i>重新命名
-                        </button>
-                        <button @click="deleteExpenseGroup(selectedExpenseGroup)" class="flex-1 px-4 py-3 rounded-2xl bg-red-50 text-red-400 text-sm font-medium">
-                            <i class="fas fa-trash mr-1"></i>刪除分組
+                    <div class="grid grid-cols-2 gap-2">
+                        <button v-for="group in expenseGroups" :key="group.id" @click="selectedExpenseGroupId = group.id" :class="['min-h-[52px] px-3 py-3 rounded-2xl text-sm font-medium break-words leading-snug text-left transition', selectedExpenseGroupId === group.id ? 'tab-pill-active' : 'bg-morandi-100 text-morandi-700']">
+                            {{ group.name }}
                         </button>
                     </div>
 
@@ -525,12 +483,9 @@
                         <textarea :value="link.review || ''" @input="updateLinkReview(index, $event.target.value)" rows="3" placeholder="記下你的心得或備註" class="w-full rounded-2xl bg-morandi-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-morandi-300 resize-none"></textarea>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
                         <button @click="editLink(index)" class="px-3 py-3 rounded-2xl bg-morandi-100 text-morandi-700 text-sm">編輯</button>
                         <button @click="openExternalLink(link.url)" class="px-3 py-3 rounded-2xl bg-morandi-100 text-morandi-700 text-sm">開啟</button>
-                        <button v-if="link.location" @click="openGoogleMapsNavigation(link.location)" class="px-3 py-3 rounded-2xl bg-sky-50 text-sky-600 text-sm">
-                            <i class="fas fa-route mr-1"></i>導航
-                        </button>
                         <button v-if="link.location" @click="createLocationFromLink(link)" class="px-3 py-3 rounded-2xl bg-morandi-100 text-morandi-700 text-sm">加入地圖</button>
                         <button @click="removeLink(index)" class="px-3 py-3 rounded-2xl bg-red-50 text-red-400 text-sm">刪除</button>
                     </div>
@@ -539,10 +494,6 @@
         </main>
 
         <button v-if="activeTab === 'expense'" @click="openExpenseModal()" class="floating-fab fixed bottom-24 right-4 w-12 h-12 rounded-2xl bg-morandi-700 text-white z-30">
-            <i class="fas fa-plus text-sm"></i>
-        </button>
-
-        <button v-if="activeTab === 'links'" @click="openLinkModal()" class="floating-fab fixed bottom-24 right-4 w-12 h-12 rounded-2xl bg-morandi-700 text-white z-30">
             <i class="fas fa-plus text-sm"></i>
         </button>
 
@@ -689,7 +640,6 @@
                     },
 
                     firebaseReady,
-                    remoteSyncEnabled: Boolean(window.location.hostname === 'localhost' || window.location.hostname.endsWith('github.io') || window.location.protocol === 'file:'),
                     isSyncing: false,
                     syncState: 'online',
                     syncTimer: null,
@@ -699,13 +649,7 @@
 
                     map: null,
                     mapMarkers: [],
-                    markerClusterGroup: null,
                     mapRefreshTimer: null,
-                    routeLayer: null,
-                    showRoute: false,
-                    routeStartLocation: null,
-                    routeEndLocation: null,
-                    routeMode: 'driving',
                     geocodeQueue: [],
                     geocodeBusy: false,
                     geocodeCache: {},
@@ -791,13 +735,13 @@
             },
             computed: {
                 syncStatusText() {
-                    if (!this.firebaseReady || !this.remoteSyncEnabled || this.syncState === 'local') return '本地模式';
+                    if (!this.firebaseReady) return '本地模式';
                     if (this.isSyncing) return '同步中';
                     if (this.syncState === 'error') return '同步異常';
                     return '已連線';
                 },
                 syncStatusDotClass() {
-                    if (!this.firebaseReady || !this.remoteSyncEnabled || this.syncState === 'local') return 'bg-morandi-300';
+                    if (!this.firebaseReady) return 'bg-morandi-300';
                     if (this.isSyncing) return 'bg-amber-400';
                     if (this.syncState === 'error') return 'bg-red-400';
                     return 'bg-green-400';
@@ -824,9 +768,6 @@
                 },
                 allMapLocations() {
                     return [...this.savedLocations, ...this.itineraryLocations, ...this.linkMapLocations];
-                },
-                selectedExpenseGroup() {
-                    return this.expenseGroups.find(group => group.id === this.selectedExpenseGroupId) || null;
                 },
                 totalExpense() {
                     return this.expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -1080,29 +1021,6 @@
                     this.persistData();
                     this.showToastMessage('已新增記帳分組');
                 },
-                renameExpenseGroup(group) {
-                    const nextName = window.prompt('請輸入新的分組名稱', group.name);
-                    if (!nextName || !nextName.trim()) return;
-                    group.name = nextName.trim();
-                    this.persistData();
-                    this.showToastMessage('已更新分組名稱');
-                },
-                deleteExpenseGroup(group) {
-                    const currentExpenses = this.expenses.filter(item => item.groupId === group.id);
-                    if (currentExpenses.length > 0) {
-                        this.showToastMessage('這個分組還有支出紀錄，無法刪除');
-                        return;
-                    }
-                    if (!window.confirm(`確定要刪除「${group.name}」嗎？`)) return;
-                    const index = this.expenseGroups.findIndex(item => item.id === group.id);
-                    if (index === -1) return;
-                    this.expenseGroups.splice(index, 1);
-                    if (this.selectedExpenseGroupId === group.id) {
-                        this.selectedExpenseGroupId = this.expenseGroups[0]?.id || 'personal';
-                    }
-                    this.persistData();
-                    this.showToastMessage('已刪除分組');
-                },
                 saveExpense() {
                     if (!this.expenseForm.title.trim() || !this.expenseForm.amount) {
                         this.showToastMessage('請填寫支出名稱與金額');
@@ -1200,11 +1118,6 @@
                 openExternalLink(url) {
                     if (!url) return;
                     window.open(url, '_blank', 'noopener');
-                },
-                openGoogleMapsNavigation(address) {
-                    if (!address) return;
-                    const encoded = encodeURIComponent(address);
-                    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, '_blank', 'noopener');
                 },
                 normalizeUrl(url) {
                     const value = (url || '').trim();
@@ -1358,25 +1271,6 @@
                         attribution: '&copy; OpenStreetMap contributors'
                     }).addTo(this.map);
 
-                    this.markerClusterGroup = L.markerClusterGroup({
-                        maxClusterRadius: 50,
-                        spiderfyOnMaxZoom: true,
-                        showCoverageOnHover: false,
-                        iconCreateFunction: (cluster) => {
-                            const count = cluster.getChildCount();
-                            let size = 'small';
-                            let dim = 36;
-                            if (count >= 10) { size = 'medium'; dim = 44; }
-                            if (count >= 50) { size = 'large'; dim = 52; }
-                            return L.divIcon({
-                                html: `<div class="cluster-icon cluster-${size}"><span>${count}</span></div>`,
-                                className: '',
-                                iconSize: L.point(dim, dim)
-                            });
-                        }
-                    });
-                    this.map.addLayer(this.markerClusterGroup);
-
                     this.scheduleMapRefresh(0);
                     setTimeout(() => this.map.invalidateSize(), 200);
                 },
@@ -1398,7 +1292,7 @@
                 },
                 async refreshMapMarkers() {
                     if (!this.map) return;
-                    this.markerClusterGroup.clearLayers();
+                    this.mapMarkers.forEach(marker => marker.remove());
                     this.mapMarkers = [];
 
                     const bounds = [];
@@ -1411,7 +1305,7 @@
 
                         const marker = L.marker([coords.lat, coords.lng], {
                             icon: this.createMarkerIcon(location.icon)
-                        });
+                        }).addTo(this.map);
 
                         marker.bindPopup(`
                             <div style="min-width: 160px;">
@@ -1422,7 +1316,6 @@
                         `);
 
                         this.mapMarkers.push(marker);
-                        this.markerClusterGroup.addLayer(marker);
                         bounds.push([coords.lat, coords.lng]);
                     }
 
@@ -1477,57 +1370,8 @@
                         }
                     });
                 },
-                toggleRoute() {
-                    this.showRoute = !this.showRoute;
-                    if (!this.showRoute) {
-                        if (this.routeLayer) {
-                            this.map.removeLayer(this.routeLayer);
-                            this.routeLayer = null;
-                        }
-                        return;
-                    }
-                    const withCoords = this.allMapLocations.filter(loc => loc.lat && loc.lng);
-                    if (withCoords.length < 2) {
-                        this.showToastMessage('需要至少 2 個有座標的地點才能規劃路線');
-                        this.showRoute = false;
-                        return;
-                    }
-                    this.routeStartLocation = withCoords[0];
-                    this.routeEndLocation = withCoords[withCoords.length - 1];
-                    this.drawRoute();
-                },
-                async drawRoute() {
-                    if (!this.routeStartLocation || !this.routeEndLocation) return;
-                    const start = this.routeStartLocation;
-                    const end = this.routeEndLocation;
-                    const url = `https://router.project-osrm.org/route/v1/${this.routeMode}/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`;
-                    try {
-                        const response = await fetch(url);
-                        const data = await response.json();
-                        if (data.code !== 'Ok' || !data.routes?.length) {
-                            this.showToastMessage('無法規劃路線');
-                            return;
-                        }
-                        const coords = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-                        if (this.routeLayer) this.map.removeLayer(this.routeLayer);
-                        this.routeLayer = L.polyline(coords, {
-                            color: '#7f695a',
-                            weight: 5,
-                            opacity: 0.85,
-                            smoothFactor: 1,
-                            dashArray: null
-                        }).addTo(this.map);
-                        this.map.fitBounds(this.routeLayer.getBounds(), { padding: [40, 40] });
-                    } catch (error) {
-                        console.error(error);
-                        this.showToastMessage('路線規劃失敗');
-                    }
-                },
                 async ensureCoordinates(location) {
-                    if (!location?.address) {
-                        console.warn('Location has no address:', location);
-                        return null;
-                    }
+                    if (!location?.address) return null;
                     if (location.lat && location.lng) {
                         return { lat: location.lat, lng: location.lng };
                     }
@@ -1540,7 +1384,7 @@
                     }
 
                     return new Promise(resolve => {
-                        this.geocodeQueue.push({ location, resolve, address: location.address });
+                        this.geocodeQueue.push({ location, resolve });
                         this.processGeocodeQueue();
                     });
                 },
@@ -1548,69 +1392,38 @@
                     if (this.geocodeBusy || this.geocodeQueue.length === 0) return;
                     this.geocodeBusy = true;
                     const task = this.geocodeQueue.shift();
-                    let address = task.address || task.location.address.trim();
-                    
-                    // Remove trailing country name (日本, Japan, etc.)
-                    address = address.replace(/[，,]\s*(日本|Japan|china|CHINA|Taiwan|台灣|香港|澳門|Korea|韓國|Thailand|泰國|Vietnam|越南|Singapore|新加坡)$/i, '');
-                    // Also handle addresses ending with just country
-                    address = address.replace(/\s+(日本|Japan|china|CHINA|Taiwan|台灣|香港|澳門|Korea|韓國|Thailand|泰國|Vietnam|越南|Singapore|新加坡)$/i, '');
-                    
+                    const address = task.location.address.trim();
                     const cacheKey = address.toLowerCase();
-                    
-                    // Try different search formats
-                    const searchQueries = [
-                        address,
-                        address.replace(/Ward/gi, '-ku').replace(/ ward/gi, '-ku'),
-                        address.split(',')[0] + ', ' + address.split(',').slice(-2).join(','),
-                        address.split(',').slice(-2, -1)[0]?.trim() + ' ' + address.split(',').slice(-1)[0]?.trim()
-                    ].filter((q, i, arr) => q && arr.indexOf(q) === i); // Remove duplicates
 
-                    let coords = null;
-                    
-                    for (const query of searchQueries) {
-                        if (coords) break;
-                        
-                        try {
-                            const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`;
-                            console.log('Geocoding attempt:', query);
-                            const response = await fetch(url, {
-                                headers: {
-                                    'Accept-Language': 'zh-TW,zh;q=0.9,ja;q=0.8,en;q=0.5',
-                                    'User-Agent': 'TravelPlannerApp/1.0 (Travel Planning Web App)'
-                                }
-                            });
-                            const data = await response.json();
-                            if (Array.isArray(data) && data[0]) {
-                                coords = {
-                                    lat: parseFloat(data[0].lat),
-                                    lng: parseFloat(data[0].lon)
-                                };
-                                console.log('Found coords:', coords);
-                                break;
+                    try {
+                        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(address)}`;
+                        const response = await fetch(url, {
+                            headers: {
+                                'Accept-Language': 'zh-TW'
                             }
-                        } catch (error) {
-                            console.error('Geocode attempt error:', error);
+                        });
+                        const data = await response.json();
+                        if (Array.isArray(data) && data[0]) {
+                            const coords = {
+                                lat: parseFloat(data[0].lat),
+                                lng: parseFloat(data[0].lon)
+                            };
+                            this.geocodeCache[cacheKey] = coords;
+                            task.location.lat = coords.lat;
+                            task.location.lng = coords.lng;
+                            task.resolve(coords);
+                            this.persistData({ skipRemote: true, silent: true });
+                        } else {
+                            task.resolve(null);
                         }
-                        
-                        // Wait between retries
-                        await new Promise(r => setTimeout(r, 1000));
-                    }
-
-                    if (coords) {
-                        this.geocodeCache[cacheKey] = coords;
-                        task.location.lat = coords.lat;
-                        task.location.lng = coords.lng;
-                        task.resolve(coords);
-                        this.persistData({ skipRemote: true, silent: true });
-                    } else {
-                        console.warn('All geocode attempts failed for:', address);
+                    } catch (error) {
                         task.resolve(null);
                     }
 
                     setTimeout(() => {
                         this.geocodeBusy = false;
                         this.processGeocodeQueue();
-                    }, 500);
+                    }, 900);
                 },
                 escapeHtml(value) {
                     return String(value || '')
@@ -1668,11 +1481,7 @@
                     const data = this.serializeData();
                     this.saveToLocal(data);
 
-                    if (skipRemote || !this.firebaseReady || !this.remoteSyncEnabled || !database || this.applyingRemoteData) {
-                        if (!this.firebaseReady || !this.remoteSyncEnabled || !database) {
-                            this.syncState = 'local';
-                            this.isSyncing = false;
-                        }
+                    if (skipRemote || !this.firebaseReady || !database || this.applyingRemoteData) {
                         return;
                     }
 
@@ -1695,10 +1504,9 @@
                     } catch (error) {
                         this.clearSyncTimer();
                         this.isSyncing = false;
-                        this.syncState = 'local';
-                        this.remoteSyncEnabled = false;
+                        this.syncState = 'error';
                         if (!silent) {
-                            this.showToastMessage('雲端暫時無法使用，已切換成本機模式');
+                            this.showToastMessage('雲端同步失敗，已先保存在本機');
                         }
                     }
                 },
@@ -1712,10 +1520,10 @@
                         console.warn('本地資料讀取失敗');
                     }
                 },
-                async                 loadData() {
+                async loadData() {
                     this.loadFromLocal();
 
-                    if (!this.firebaseReady || !this.remoteSyncEnabled || !database) {
+                    if (!this.firebaseReady || !database) {
                         this.syncState = 'local';
                         return;
                     }
@@ -1743,8 +1551,7 @@
                     } catch (error) {
                         this.clearSyncTimer();
                         this.isSyncing = false;
-                        this.syncState = 'local';
-                        this.remoteSyncEnabled = false;
+                        this.syncState = 'error';
                     }
 
                     if (!this.remoteListenerAttached) {
@@ -1760,8 +1567,7 @@
                         });
                         this.remoteListenerAttached = true;
                     }
-                },
-            },
+                }
             },
             mounted() {
                 this.loadData().then(() => {
