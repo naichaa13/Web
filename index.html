@@ -1548,44 +1548,69 @@
                     if (this.geocodeBusy || this.geocodeQueue.length === 0) return;
                     this.geocodeBusy = true;
                     const task = this.geocodeQueue.shift();
-                    const address = task.address || task.location.address.trim();
+                    let address = task.address || task.location.address.trim();
+                    
+                    // Remove trailing country name (日本, Japan, etc.)
+                    address = address.replace(/[，,]\s*(日本|Japan|china|CHINA|Taiwan|台灣|香港|澳門|Korea|韓國|Thailand|泰國|Vietnam|越南|Singapore|新加坡)$/i, '');
+                    // Also handle addresses ending with just country
+                    address = address.replace(/\s+(日本|Japan|china|CHINA|Taiwan|台灣|香港|澳門|Korea|韓國|Thailand|泰國|Vietnam|越南|Singapore|新加坡)$/i, '');
+                    
                     const cacheKey = address.toLowerCase();
+                    
+                    // Try different search formats
+                    const searchQueries = [
+                        address,
+                        address.replace(/Ward/gi, '-ku').replace(/ ward/gi, '-ku'),
+                        address.split(',')[0] + ', ' + address.split(',').slice(-2).join(','),
+                        address.split(',').slice(-2, -1)[0]?.trim() + ' ' + address.split(',').slice(-1)[0]?.trim()
+                    ].filter((q, i, arr) => q && arr.indexOf(q) === i); // Remove duplicates
 
-                    try {
-                        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(address)}`;
-                        console.log('Geocoding:', address, 'URL:', url);
-                        const response = await fetch(url, {
-                            headers: {
-                                'Accept-Language': 'zh-TW,zh;q=0.9',
-                                'User-Agent': 'TravelPlannerApp/1.0 (Travel Planning Web App)'
+                    let coords = null;
+                    
+                    for (const query of searchQueries) {
+                        if (coords) break;
+                        
+                        try {
+                            const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`;
+                            console.log('Geocoding attempt:', query);
+                            const response = await fetch(url, {
+                                headers: {
+                                    'Accept-Language': 'zh-TW,zh;q=0.9,ja;q=0.8,en;q=0.5',
+                                    'User-Agent': 'TravelPlannerApp/1.0 (Travel Planning Web App)'
+                                }
+                            });
+                            const data = await response.json();
+                            if (Array.isArray(data) && data[0]) {
+                                coords = {
+                                    lat: parseFloat(data[0].lat),
+                                    lng: parseFloat(data[0].lon)
+                                };
+                                console.log('Found coords:', coords);
+                                break;
                             }
-                        });
-                        console.log('Geocode response status:', response.status);
-                        const data = await response.json();
-                        console.log('Geocode result:', data);
-                        if (Array.isArray(data) && data[0]) {
-                            const coords = {
-                                lat: parseFloat(data[0].lat),
-                                lng: parseFloat(data[0].lon)
-                            };
-                            this.geocodeCache[cacheKey] = coords;
-                            task.location.lat = coords.lat;
-                            task.location.lng = coords.lng;
-                            task.resolve(coords);
-                            this.persistData({ skipRemote: true, silent: true });
-                        } else {
-                            console.warn('Geocode not found for:', address, 'Response:', data);
-                            task.resolve(null);
+                        } catch (error) {
+                            console.error('Geocode attempt error:', error);
                         }
-                    } catch (error) {
-                        console.error('Geocode error:', error);
+                        
+                        // Wait between retries
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
+
+                    if (coords) {
+                        this.geocodeCache[cacheKey] = coords;
+                        task.location.lat = coords.lat;
+                        task.location.lng = coords.lng;
+                        task.resolve(coords);
+                        this.persistData({ skipRemote: true, silent: true });
+                    } else {
+                        console.warn('All geocode attempts failed for:', address);
                         task.resolve(null);
                     }
 
                     setTimeout(() => {
                         this.geocodeBusy = false;
                         this.processGeocodeQueue();
-                    }, 1000);
+                    }, 500);
                 },
                 escapeHtml(value) {
                     return String(value || '')
