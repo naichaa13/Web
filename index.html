@@ -1524,7 +1524,10 @@
                     }
                 },
                 async ensureCoordinates(location) {
-                    if (!location?.address) return null;
+                    if (!location?.address) {
+                        console.warn('Location has no address:', location);
+                        return null;
+                    }
                     if (location.lat && location.lng) {
                         return { lat: location.lat, lng: location.lng };
                     }
@@ -1537,7 +1540,7 @@
                     }
 
                     return new Promise(resolve => {
-                        this.geocodeQueue.push({ location, resolve });
+                        this.geocodeQueue.push({ location, resolve, address: location.address });
                         this.processGeocodeQueue();
                     });
                 },
@@ -1545,18 +1548,21 @@
                     if (this.geocodeBusy || this.geocodeQueue.length === 0) return;
                     this.geocodeBusy = true;
                     const task = this.geocodeQueue.shift();
-                    const address = task.location.address.trim();
+                    const address = task.address || task.location.address.trim();
                     const cacheKey = address.toLowerCase();
 
                     try {
                         const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(address)}`;
+                        console.log('Geocoding:', address, 'URL:', url);
                         const response = await fetch(url, {
                             headers: {
                                 'Accept-Language': 'zh-TW,zh;q=0.9',
                                 'User-Agent': 'TravelPlannerApp/1.0 (Travel Planning Web App)'
                             }
                         });
+                        console.log('Geocode response status:', response.status);
                         const data = await response.json();
+                        console.log('Geocode result:', data);
                         if (Array.isArray(data) && data[0]) {
                             const coords = {
                                 lat: parseFloat(data[0].lat),
@@ -1568,7 +1574,7 @@
                             task.resolve(coords);
                             this.persistData({ skipRemote: true, silent: true });
                         } else {
-                            console.warn('Geocode not found for:', address);
+                            console.warn('Geocode not found for:', address, 'Response:', data);
                             task.resolve(null);
                         }
                     } catch (error) {
