@@ -267,7 +267,14 @@
                                     <p v-if="item.location" class="text-sm text-morandi-500 mt-1 break-words">{{ item.location }}</p>
                                     <p v-if="item.weather" class="text-xs text-morandi-400 mt-1">{{ item.weather }}</p>
                                 </div>
-                                <button v-if="item.location" @click="focusLocationOnMap(makeTripLocation(item))" class="text-morandi-600 text-sm shrink-0">地圖</button>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <button v-if="item.location" @click="focusLocationOnMap(makeTripLocation(item))" class="px-2 py-1.5 rounded-xl bg-morandi-100 text-morandi-700 text-xs">
+                                        <i class="fas fa-map text-xs"></i>
+                                    </button>
+                                    <button v-if="item.location" @click="openGoogleMapsNavigation(item.location)" class="px-2 py-1.5 rounded-xl bg-sky-50 text-sky-600 text-xs">
+                                        <i class="fas fa-route text-xs"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -324,6 +331,7 @@
                             <p class="text-sm text-morandi-500 mt-1 break-words">{{ location.address }}</p>
                         </button>
                         <div class="flex flex-col gap-2 shrink-0">
+                            <button @click="openGoogleMapsNavigation(location.address)" class="w-9 h-9 rounded-2xl bg-sky-50 text-sky-600"><i class="fas fa-route text-sm"></i></button>
                             <button @click="editLocation(index)" class="w-9 h-9 rounded-2xl bg-morandi-100 text-morandi-700"><i class="fas fa-pen text-sm"></i></button>
                             <button @click="removeLocation(index)" class="w-9 h-9 rounded-2xl bg-red-50 text-red-400"><i class="fas fa-trash text-sm"></i></button>
                         </div>
@@ -483,9 +491,12 @@
                         <textarea :value="link.review || ''" @input="updateLinkReview(index, $event.target.value)" rows="3" placeholder="記下你的心得或備註" class="w-full rounded-2xl bg-morandi-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-morandi-300 resize-none"></textarea>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
                         <button @click="editLink(index)" class="px-3 py-3 rounded-2xl bg-morandi-100 text-morandi-700 text-sm">編輯</button>
                         <button @click="openExternalLink(link.url)" class="px-3 py-3 rounded-2xl bg-morandi-100 text-morandi-700 text-sm">開啟</button>
+                        <button v-if="link.location" @click="openGoogleMapsNavigation(link.location)" class="px-3 py-3 rounded-2xl bg-sky-50 text-sky-600 text-sm">
+                            <i class="fas fa-route mr-1"></i>導航
+                        </button>
                         <button v-if="link.location" @click="createLocationFromLink(link)" class="px-3 py-3 rounded-2xl bg-morandi-100 text-morandi-700 text-sm">加入地圖</button>
                         <button @click="removeLink(index)" class="px-3 py-3 rounded-2xl bg-red-50 text-red-400 text-sm">刪除</button>
                     </div>
@@ -494,6 +505,10 @@
         </main>
 
         <button v-if="activeTab === 'expense'" @click="openExpenseModal()" class="floating-fab fixed bottom-24 right-4 w-12 h-12 rounded-2xl bg-morandi-700 text-white z-30">
+            <i class="fas fa-plus text-sm"></i>
+        </button>
+
+        <button v-if="activeTab === 'links'" @click="openLinkModal()" class="floating-fab fixed bottom-24 right-4 w-12 h-12 rounded-2xl bg-morandi-700 text-white z-30">
             <i class="fas fa-plus text-sm"></i>
         </button>
 
@@ -640,6 +655,7 @@
                     },
 
                     firebaseReady,
+                    remoteSyncEnabled: Boolean(window.location.hostname === 'localhost' || window.location.hostname.endsWith('github.io')),
                     isSyncing: false,
                     syncState: 'online',
                     syncTimer: null,
@@ -735,13 +751,13 @@
             },
             computed: {
                 syncStatusText() {
-                    if (!this.firebaseReady) return '本地模式';
+                    if (!this.firebaseReady || !this.remoteSyncEnabled || this.syncState === 'local') return '本地模式';
                     if (this.isSyncing) return '同步中';
                     if (this.syncState === 'error') return '同步異常';
                     return '已連線';
                 },
                 syncStatusDotClass() {
-                    if (!this.firebaseReady) return 'bg-morandi-300';
+                    if (!this.firebaseReady || !this.remoteSyncEnabled || this.syncState === 'local') return 'bg-morandi-300';
                     if (this.isSyncing) return 'bg-amber-400';
                     if (this.syncState === 'error') return 'bg-red-400';
                     return 'bg-green-400';
@@ -1119,6 +1135,11 @@
                     if (!url) return;
                     window.open(url, '_blank', 'noopener');
                 },
+                openGoogleMapsNavigation(address) {
+                    if (!address) return;
+                    const encoded = encodeURIComponent(address);
+                    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, '_blank', 'noopener');
+                },
                 normalizeUrl(url) {
                     const value = (url || '').trim();
                     if (!value) return '';
@@ -1481,7 +1502,11 @@
                     const data = this.serializeData();
                     this.saveToLocal(data);
 
-                    if (skipRemote || !this.firebaseReady || !database || this.applyingRemoteData) {
+                    if (skipRemote || !this.firebaseReady || !this.remoteSyncEnabled || !database || this.applyingRemoteData) {
+                        if (!this.firebaseReady || !this.remoteSyncEnabled || !database) {
+                            this.syncState = 'local';
+                            this.isSyncing = false;
+                        }
                         return;
                     }
 
@@ -1504,9 +1529,10 @@
                     } catch (error) {
                         this.clearSyncTimer();
                         this.isSyncing = false;
-                        this.syncState = 'error';
+                        this.syncState = 'local';
+                        this.remoteSyncEnabled = false;
                         if (!silent) {
-                            this.showToastMessage('雲端同步失敗，已先保存在本機');
+                            this.showToastMessage('雲端暫時無法使用，已切換成本機模式');
                         }
                     }
                 },
@@ -1523,7 +1549,7 @@
                 async loadData() {
                     this.loadFromLocal();
 
-                    if (!this.firebaseReady || !database) {
+                    if (!this.firebaseReady || !this.remoteSyncEnabled || !database) {
                         this.syncState = 'local';
                         return;
                     }
@@ -1551,7 +1577,8 @@
                     } catch (error) {
                         this.clearSyncTimer();
                         this.isSyncing = false;
-                        this.syncState = 'error';
+                        this.syncState = 'local';
+                        this.remoteSyncEnabled = false;
                     }
 
                     if (!this.remoteListenerAttached) {
