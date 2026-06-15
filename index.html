@@ -358,12 +358,15 @@
                     </div>
 
                     <div class="space-y-2">
-                        <div v-for="group in expenseGroups" :key="group.id" class="flex items-center gap-2">
-                            <button @click="selectedExpenseGroupId = group.id" :class="['flex-1 min-h-[52px] px-3 py-3 rounded-2xl text-sm font-medium break-words leading-snug text-left transition', selectedExpenseGroupId === group.id ? 'tab-pill-active' : 'bg-morandi-100 text-morandi-700']">
+                        <div v-for="group in expenseGroups" :key="group.id" class="flex items-center gap-2 bg-morandi-50 rounded-2xl px-3 py-2">
+                            <button @click="selectedExpenseGroupId = group.id" :class="['flex-1 min-h-[52px] text-sm font-medium text-left transition rounded-xl px-2 py-2', selectedExpenseGroupId === group.id ? 'bg-morandi-700 text-white font-semibold' : 'text-morandi-800']">
                                 {{ group.name }}
                             </button>
-                            <button v-if="group.id !== 'personal' && group.id !== 'shared'" @click="renameExpenseGroup(group)" class="w-10 h-10 rounded-2xl bg-morandi-100 text-morandi-700 shrink-0 flex items-center justify-center">
+                            <button v-if="group.id !== 'personal' && group.id !== 'shared'" @click="renameExpenseGroup(group)" class="w-9 h-9 rounded-xl bg-morandi-100 text-morandi-700 shrink-0 flex items-center justify-center">
                                 <i class="fas fa-pen text-xs"></i>
+                            </button>
+                            <button v-if="group.id !== 'personal' && group.id !== 'shared'" @click="deleteExpenseGroup(group)" class="w-9 h-9 rounded-xl bg-red-50 text-red-400 shrink-0 flex items-center justify-center">
+                                <i class="fas fa-trash text-xs"></i>
                             </button>
                         </div>
                     </div>
@@ -1048,6 +1051,22 @@
                     group.name = nextName.trim();
                     this.persistData();
                     this.showToastMessage('已更新分組名稱');
+                },
+                deleteExpenseGroup(group) {
+                    const currentExpenses = this.expenses.filter(item => item.groupId === group.id);
+                    if (currentExpenses.length > 0) {
+                        this.showToastMessage('這個分組還有支出紀錄，無法刪除');
+                        return;
+                    }
+                    if (!window.confirm(`確定要刪除「${group.name}」嗎？`)) return;
+                    const index = this.expenseGroups.findIndex(item => item.id === group.id);
+                    if (index === -1) return;
+                    this.expenseGroups.splice(index, 1);
+                    if (this.selectedExpenseGroupId === group.id) {
+                        this.selectedExpenseGroupId = this.expenseGroups[0]?.id || 'personal';
+                    }
+                    this.persistData();
+                    this.showToastMessage('已刪除分組');
                 },
                 saveExpense() {
                     if (!this.expenseForm.title.trim() || !this.expenseForm.amount) {
