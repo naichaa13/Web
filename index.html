@@ -1605,17 +1605,17 @@
                 },
                 hydrateData(data) {
                     if (!data || typeof data !== 'object') return;
-                    this.trips = Array.isArray(data.trips) ? data.trips.map(trip => ({
+                    this.trips = (Array.isArray(data.trips) ? data.trips : []).map(trip => ({
                         ...trip,
-                        items: Array.isArray(trip.items) ? trip.items : []
-                    })) : [];
+                        items: Array.isArray(trip?.items) ? trip.items : []
+                    }));
                     this.savedLocations = Array.isArray(data.savedLocations) ? data.savedLocations : [];
-                    this.expenseGroups = Array.isArray(data.expenseGroups) && data.expenseGroups.length
-                        ? data.expenseGroups
+                    this.expenseGroups = (Array.isArray(data.expenseGroups) ? data.expenseGroups : []).filter(g => g && g.id).length > 0
+                        ? data.expenseGroups.filter(g => g && g.id)
                         : [{ id: 'personal', name: '個人' }, { id: 'shared', name: '共同' }];
                     this.expenses = Array.isArray(data.expenses) ? data.expenses : [];
-                    this.shoppingGroups = Array.isArray(data.shoppingGroups) && data.shoppingGroups.length
-                        ? data.shoppingGroups.map(group => ({
+                    this.shoppingGroups = (Array.isArray(data.shoppingGroups) ? data.shoppingGroups : []).filter(g => g && g.id).length > 0
+                        ? data.shoppingGroups.filter(g => g && g.id).map(group => ({
                             ...group,
                             items: Array.isArray(group.items) ? group.items : []
                         }))
