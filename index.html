@@ -416,7 +416,7 @@
                         <div class="min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h3 class="font-semibold text-morandi-800 break-words">{{ group.name }}</h3>
-                                <span class="px-2 py-1 rounded-full bg-morandi-100 text-morandi-600 text-xs">{{ group.items.length }} 項</span>
+                                <span class="px-2 py-1 rounded-full bg-morandi-100 text-morandi-600 text-xs">{{ (group.items || []).length }} 項</span>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
@@ -425,9 +425,9 @@
                         </div>
                     </div>
 
-                    <div v-if="group.items.length === 0" class="rounded-2xl bg-morandi-50 px-4 py-4 text-sm text-morandi-500">這個分組還沒有項目。</div>
+                    <div v-if="!group.items || group.items.length === 0" class="rounded-2xl bg-morandi-50 px-4 py-4 text-sm text-morandi-500">這個分組還沒有項目。</div>
 
-                    <div v-for="(item, itemIndex) in group.items" :key="item.id" class="rounded-2xl border border-morandi-100 px-4 py-3 flex items-center gap-3">
+                    <div v-for="(item, itemIndex) in (group.items || [])" :key="item.id" class="rounded-2xl border border-morandi-100 px-4 py-3 flex items-center gap-3">
                         <button @click="toggleShoppingItem(groupIndex, itemIndex)" :class="['w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0', item.completed ? 'bg-morandi-700 border-morandi-700 text-white' : 'border-morandi-300 text-transparent']">
                             <i class="fas fa-check text-xs"></i>
                         </button>
@@ -787,10 +787,10 @@
                     return this.shoppingGroups.find(group => group.id === this.selectedShoppingGroupId) || this.shoppingGroups[0] || null;
                 },
                 totalShoppingItems() {
-                    return this.shoppingGroups.reduce((sum, group) => sum + group.items.length, 0);
+                    return this.shoppingGroups.reduce((sum, group) => sum + (group.items || []).length, 0);
                 },
                 completedItems() {
-                    return this.shoppingGroups.reduce((sum, group) => sum + group.items.filter(item => item.completed).length, 0);
+                    return this.shoppingGroups.reduce((sum, group) => sum + (group.items || []).filter(item => item.completed).length, 0);
                 },
                 isAnyModalOpen() {
                     return this.showTripModal || this.showScheduleModal || this.showLocationModal || this.showExpenseModal || this.showLinkModal;
