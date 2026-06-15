@@ -271,8 +271,9 @@
                         </div>
                     </div>
 
-                    <div v-if="trip.items.length === 0" class="rounded-2xl bg-morandi-50 px-4 py-4 text-sm text-morandi-500">這天還沒有安排內容。</div>
+                    <div v-if="!trip.items || trip.items.length === 0" class="rounded-2xl bg-morandi-50 px-4 py-4 text-sm text-morandi-500">這天還沒有安排內容。</div>
 
+                    <template v-if="trip.items && trip.items.length > 0">
                     <div v-for="(item, itemIndex) in trip.items" :key="item.id" class="flex gap-3 items-start">
                         <div class="flex flex-col items-center pt-1">
                             <div class="w-3 h-3 rounded-full bg-morandi-500"></div>
@@ -298,6 +299,7 @@
                     </div>
 
                     <button @click="openScheduleModal(tripIndex)" class="w-full py-3 rounded-2xl border border-dashed border-morandi-300 text-sm text-morandi-600">新增行程項目</button>
+                    </template>
                 </article>
             </section>
 
@@ -458,7 +460,7 @@
                         <div class="min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h3 class="font-semibold text-morandi-800 break-words">{{ group.name }}</h3>
-                                <span class="px-2 py-1 rounded-full bg-morandi-100 text-morandi-600 text-xs">{{ group.items.length }} 項</span>
+                                <span class="px-2 py-1 rounded-full bg-morandi-100 text-morandi-600 text-xs">{{ group.items?.length || 0 }} 項</span>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
@@ -467,8 +469,9 @@
                         </div>
                     </div>
 
-                    <div v-if="group.items.length === 0" class="rounded-2xl bg-morandi-50 px-4 py-4 text-sm text-morandi-500">這個分組還沒有項目。</div>
+                    <div v-if="!group.items || group.items.length === 0" class="rounded-2xl bg-morandi-50 px-4 py-4 text-sm text-morandi-500">這個分組還沒有項目。</div>
 
+                    <template v-if="group.items && group.items.length > 0">
                     <div v-for="(item, itemIndex) in group.items" :key="item.id" class="rounded-2xl border border-morandi-100 px-4 py-3 flex items-center gap-3">
                         <button @click="toggleShoppingItem(groupIndex, itemIndex)" :class="['w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0', item.completed ? 'bg-morandi-700 border-morandi-700 text-white' : 'border-morandi-300 text-transparent']">
                             <i class="fas fa-check text-xs"></i>
@@ -479,6 +482,7 @@
                         <span class="px-2 py-1 rounded-xl bg-morandi-100 text-morandi-600 text-sm shrink-0">x{{ item.quantity }}</span>
                         <button @click="removeShoppingItem(groupIndex, itemIndex)" class="w-8 h-8 rounded-2xl bg-red-50 text-red-400 shrink-0"><i class="fas fa-times text-xs"></i></button>
                     </div>
+                    </template>
                 </div>
             </section>
 
@@ -1601,14 +1605,20 @@
                 },
                 hydrateData(data) {
                     if (!data || typeof data !== 'object') return;
-                    this.trips = Array.isArray(data.trips) ? data.trips : [];
+                    this.trips = Array.isArray(data.trips) ? data.trips.map(trip => ({
+                        ...trip,
+                        items: Array.isArray(trip.items) ? trip.items : []
+                    })) : [];
                     this.savedLocations = Array.isArray(data.savedLocations) ? data.savedLocations : [];
                     this.expenseGroups = Array.isArray(data.expenseGroups) && data.expenseGroups.length
                         ? data.expenseGroups
                         : [{ id: 'personal', name: '個人' }, { id: 'shared', name: '共同' }];
                     this.expenses = Array.isArray(data.expenses) ? data.expenses : [];
                     this.shoppingGroups = Array.isArray(data.shoppingGroups) && data.shoppingGroups.length
-                        ? data.shoppingGroups
+                        ? data.shoppingGroups.map(group => ({
+                            ...group,
+                            items: Array.isArray(group.items) ? group.items : []
+                        }))
                         : [{ id: 'default', name: '我的', items: [] }];
                     this.savedLinks = Array.isArray(data.savedLinks) ? data.savedLinks : [];
                     this.geocodeCache = data.geocodeCache || {};
