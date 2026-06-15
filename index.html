@@ -1552,7 +1552,8 @@
                         const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(address)}`;
                         const response = await fetch(url, {
                             headers: {
-                                'Accept-Language': 'zh-TW'
+                                'Accept-Language': 'zh-TW,zh;q=0.9',
+                                'User-Agent': 'TravelPlannerApp/1.0 (Travel Planning Web App)'
                             }
                         });
                         const data = await response.json();
@@ -1567,16 +1568,18 @@
                             task.resolve(coords);
                             this.persistData({ skipRemote: true, silent: true });
                         } else {
+                            console.warn('Geocode not found for:', address);
                             task.resolve(null);
                         }
                     } catch (error) {
+                        console.error('Geocode error:', error);
                         task.resolve(null);
                     }
 
                     setTimeout(() => {
                         this.geocodeBusy = false;
                         this.processGeocodeQueue();
-                    }, 900);
+                    }, 1000);
                 },
                 escapeHtml(value) {
                     return String(value || '')
