@@ -206,16 +206,18 @@
         <header class="sticky top-0 z-40 px-4 pt-4 pb-3 bg-white/75 backdrop-blur-xl border-b border-white/60">
             <div class="rounded-[28px] bg-gradient-to-br from-white via-white to-morandi-100 shadow-soft px-4 py-4">
                 <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <p class="text-xs tracking-[0.18em] uppercase text-morandi-400">Travel planner</p>
-                        <h1 class="text-2xl font-semibold text-morandi-800">旅行趣</h1>
-                        <p class="text-sm text-morandi-500 mt-1">{{ currentDate }}</p>
-                    </div>
-                    <div class="flex items-center gap-2 shrink-0">
-                        <button @click="generateShareLink" class="px-3 h-10 rounded-2xl bg-blue-500 text-white text-sm hover:bg-blue-600 transition-colors flex items-center gap-2">
+                    <div class="flex items-center gap-3">
+                        <div>
+                            <p class="text-xs tracking-[0.18em] uppercase text-morandi-400">Travel planner</p>
+                            <h1 class="text-2xl font-semibold text-morandi-800">旅行趣</h1>
+                            <p class="text-sm text-morandi-500 mt-1">{{ currentDate }}</p>
+                        </div>
+                        <button @click="generateShareLink" class="px-3 h-10 rounded-2xl bg-blue-500 text-white text-sm hover:bg-blue-600 transition-colors flex items-center gap-2 shrink-0">
                             <i class="fas fa-share-alt"></i>
                             分享
                         </button>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
                         <button @click="showWeather = !showWeather" class="w-10 h-10 rounded-2xl bg-morandi-100 text-morandi-700 hover:bg-morandi-200 transition-colors">
                             <i class="fas fa-cloud-sun"></i>
                         </button>
