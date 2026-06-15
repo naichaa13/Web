@@ -11,9 +11,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="" />
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyCKBz1CQkh5CtIeZmuLpUm6N5PU-6LsXns",
@@ -160,6 +163,21 @@
             font-size: 14px;
         }
 
+        .cluster-icon {
+            border-radius: 999px;
+            background: linear-gradient(135deg, #99816f 0%, #7f695a 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            box-shadow: 0 8px 24px rgba(95, 78, 67, 0.3);
+            border: 3px solid rgba(255,255,255,0.95);
+        }
+        .cluster-small { width: 36px; height: 36px; font-size: 13px; }
+        .cluster-medium { width: 44px; height: 44px; font-size: 15px; }
+        .cluster-large { width: 52px; height: 52px; font-size: 17px; }
+
         .leaflet-popup-content-wrapper {
             border-radius: 16px;
         }
@@ -289,7 +307,12 @@
                         <h2 class="text-lg font-semibold text-morandi-800">地圖</h2>
                         <p class="text-sm text-morandi-500 mt-1">行程、收藏、連結地點會一起顯示</p>
                     </div>
-                    <button @click="fitMapToLocations" class="px-4 py-2 rounded-2xl bg-white text-morandi-700 shadow-soft text-sm">定位全部</button>
+                    <div class="flex gap-2">
+                        <button @click="toggleRoute" :class="['px-4 py-2 rounded-2xl text-sm transition', showRoute ? 'bg-morandi-700 text-white' : 'bg-white text-morandi-700 shadow-soft']">
+                            <i class="fas fa-route mr-1"></i>路線
+                        </button>
+                        <button @click="fitMapToLocations" class="px-4 py-2 rounded-2xl bg-white text-morandi-700 shadow-soft text-sm">定位</button>
+                    </div>
                 </div>
 
                 <div class="rounded-[28px] bg-white p-3 shadow-soft overflow-hidden">
@@ -358,17 +381,20 @@
                     </div>
 
                     <div class="space-y-2">
-                        <div v-for="group in expenseGroups" :key="group.id" class="flex items-center gap-2 bg-morandi-50 rounded-2xl px-3 py-2">
-                            <button @click="selectedExpenseGroupId = group.id" :class="['flex-1 min-h-[52px] text-sm font-medium text-left transition rounded-xl px-2 py-2', selectedExpenseGroupId === group.id ? 'bg-morandi-700 text-white font-semibold' : 'text-morandi-800']">
+                        <div v-for="group in expenseGroups" :key="group.id" class="flex items-center">
+                            <button @click="selectedExpenseGroupId = group.id" :class="['w-full min-h-[52px] rounded-2xl px-4 py-3 text-sm font-medium text-left transition', selectedExpenseGroupId === group.id ? 'bg-morandi-700 text-white font-semibold' : 'bg-morandi-50 text-morandi-800']">
                                 {{ group.name }}
                             </button>
-                            <button v-if="group.id !== 'personal' && group.id !== 'shared'" @click="renameExpenseGroup(group)" class="w-9 h-9 rounded-xl bg-morandi-100 text-morandi-700 shrink-0 flex items-center justify-center">
-                                <i class="fas fa-pen text-xs"></i>
-                            </button>
-                            <button v-if="group.id !== 'personal' && group.id !== 'shared'" @click="deleteExpenseGroup(group)" class="w-9 h-9 rounded-xl bg-red-50 text-red-400 shrink-0 flex items-center justify-center">
-                                <i class="fas fa-trash text-xs"></i>
-                            </button>
                         </div>
+                    </div>
+
+                    <div v-if="selectedExpenseGroup && selectedExpenseGroup.id !== 'personal' && selectedExpenseGroup.id !== 'shared'" class="flex gap-2">
+                        <button @click="renameExpenseGroup(selectedExpenseGroup)" class="flex-1 px-4 py-3 rounded-2xl bg-morandi-100 text-morandi-700 text-sm font-medium">
+                            <i class="fas fa-pen mr-1"></i>重新命名
+                        </button>
+                        <button @click="deleteExpenseGroup(selectedExpenseGroup)" class="flex-1 px-4 py-3 rounded-2xl bg-red-50 text-red-400 text-sm font-medium">
+                            <i class="fas fa-trash mr-1"></i>刪除分組
+                        </button>
                     </div>
 
                     <div class="flex gap-2 overflow-x-auto pb-1">
@@ -673,7 +699,13 @@
 
                     map: null,
                     mapMarkers: [],
+                    markerClusterGroup: null,
                     mapRefreshTimer: null,
+                    routeLayer: null,
+                    showRoute: false,
+                    routeStartLocation: null,
+                    routeEndLocation: null,
+                    routeMode: 'driving',
                     geocodeQueue: [],
                     geocodeBusy: false,
                     geocodeCache: {},
@@ -792,6 +824,9 @@
                 },
                 allMapLocations() {
                     return [...this.savedLocations, ...this.itineraryLocations, ...this.linkMapLocations];
+                },
+                selectedExpenseGroup() {
+                    return this.expenseGroups.find(group => group.id === this.selectedExpenseGroupId) || null;
                 },
                 totalExpense() {
                     return this.expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -1323,6 +1358,25 @@
                         attribution: '&copy; OpenStreetMap contributors'
                     }).addTo(this.map);
 
+                    this.markerClusterGroup = L.markerClusterGroup({
+                        maxClusterRadius: 50,
+                        spiderfyOnMaxZoom: true,
+                        showCoverageOnHover: false,
+                        iconCreateFunction: (cluster) => {
+                            const count = cluster.getChildCount();
+                            let size = 'small';
+                            let dim = 36;
+                            if (count >= 10) { size = 'medium'; dim = 44; }
+                            if (count >= 50) { size = 'large'; dim = 52; }
+                            return L.divIcon({
+                                html: `<div class="cluster-icon cluster-${size}"><span>${count}</span></div>`,
+                                className: '',
+                                iconSize: L.point(dim, dim)
+                            });
+                        }
+                    });
+                    this.map.addLayer(this.markerClusterGroup);
+
                     this.scheduleMapRefresh(0);
                     setTimeout(() => this.map.invalidateSize(), 200);
                 },
@@ -1344,7 +1398,7 @@
                 },
                 async refreshMapMarkers() {
                     if (!this.map) return;
-                    this.mapMarkers.forEach(marker => marker.remove());
+                    this.markerClusterGroup.clearLayers();
                     this.mapMarkers = [];
 
                     const bounds = [];
@@ -1357,7 +1411,7 @@
 
                         const marker = L.marker([coords.lat, coords.lng], {
                             icon: this.createMarkerIcon(location.icon)
-                        }).addTo(this.map);
+                        });
 
                         marker.bindPopup(`
                             <div style="min-width: 160px;">
@@ -1368,6 +1422,7 @@
                         `);
 
                         this.mapMarkers.push(marker);
+                        this.markerClusterGroup.addLayer(marker);
                         bounds.push([coords.lat, coords.lng]);
                     }
 
@@ -1421,6 +1476,52 @@
                             this.scheduleMapRefresh(0);
                         }
                     });
+                },
+                toggleRoute() {
+                    this.showRoute = !this.showRoute;
+                    if (!this.showRoute) {
+                        if (this.routeLayer) {
+                            this.map.removeLayer(this.routeLayer);
+                            this.routeLayer = null;
+                        }
+                        return;
+                    }
+                    const withCoords = this.allMapLocations.filter(loc => loc.lat && loc.lng);
+                    if (withCoords.length < 2) {
+                        this.showToastMessage('需要至少 2 個有座標的地點才能規劃路線');
+                        this.showRoute = false;
+                        return;
+                    }
+                    this.routeStartLocation = withCoords[0];
+                    this.routeEndLocation = withCoords[withCoords.length - 1];
+                    this.drawRoute();
+                },
+                async drawRoute() {
+                    if (!this.routeStartLocation || !this.routeEndLocation) return;
+                    const start = this.routeStartLocation;
+                    const end = this.routeEndLocation;
+                    const url = `https://router.project-osrm.org/route/v1/${this.routeMode}/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`;
+                    try {
+                        const response = await fetch(url);
+                        const data = await response.json();
+                        if (data.code !== 'Ok' || !data.routes?.length) {
+                            this.showToastMessage('無法規劃路線');
+                            return;
+                        }
+                        const coords = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+                        if (this.routeLayer) this.map.removeLayer(this.routeLayer);
+                        this.routeLayer = L.polyline(coords, {
+                            color: '#7f695a',
+                            weight: 5,
+                            opacity: 0.85,
+                            smoothFactor: 1,
+                            dashArray: null
+                        }).addTo(this.map);
+                        this.map.fitBounds(this.routeLayer.getBounds(), { padding: [40, 40] });
+                    } catch (error) {
+                        console.error(error);
+                        this.showToastMessage('路線規劃失敗');
+                    }
                 },
                 async ensureCoordinates(location) {
                     if (!location?.address) return null;
