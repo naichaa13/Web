@@ -212,6 +212,10 @@
                         <p class="text-sm text-morandi-500 mt-1">{{ currentDate }}</p>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
+                        <button @click="generateShareLink" class="px-3 h-10 rounded-2xl bg-blue-500 text-white text-sm hover:bg-blue-600 transition-colors flex items-center gap-2">
+                            <i class="fas fa-share-alt"></i>
+                            分享
+                        </button>
                         <button @click="showWeather = !showWeather" class="w-10 h-10 rounded-2xl bg-morandi-100 text-morandi-700 hover:bg-morandi-200 transition-colors">
                             <i class="fas fa-cloud-sun"></i>
                         </button>
@@ -689,7 +693,7 @@
                     },
 
                     firebaseReady,
-                    remoteSyncEnabled: Boolean(window.location.hostname === 'localhost' || window.location.hostname.endsWith('github.io')),
+                    remoteSyncEnabled: true, // Enable Firebase sync for all users
                     isSyncing: false,
                     syncState: 'online',
                     syncTimer: null,
@@ -1712,7 +1716,26 @@
                         console.warn('本地資料讀取失敗');
                     }
                 },
-                async loadData() {
+                async                 loadData() {
+                    // Check for shared data in URL
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const sharedData = urlParams.get('share');
+                    if (sharedData) {
+                        try {
+                            const decoded = atob(sharedData);
+                            const parsed = JSON.parse(decoded);
+                            this.hydrateData(parsed);
+                            this.saveToLocal(this.serializeData());
+                            this.showToastMessage('已載入分享的行程資料');
+                            // Clean URL
+                            window.history.replaceState({}, '', window.location.pathname);
+                        } catch (e) {
+                            console.error('Failed to load shared data', e);
+                            this.showToastMessage('分享連結無效');
+                        }
+                        return Promise.resolve();
+                    }
+
                     this.loadFromLocal();
 
                     if (!this.firebaseReady || !this.remoteSyncEnabled || !database) {
@@ -1760,6 +1783,41 @@
                         });
                         this.remoteListenerAttached = true;
                     }
+                },
+                generateShareLink() {
+                    const data = this.serializeData();
+                    const jsonStr = JSON.stringify(data);
+                    const encoded = btoa(unescape(encodeURIComponent(jsonStr)));
+                    const shareUrl = window.location.origin + window.location.pathname + '?share=' + encoded;
+                    
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(shareUrl).then(() => {
+                            this.showToastMessage('分享連結已複製到剪貼簿');
+                        }).catch(() => {
+                            this.showShareModal(shareUrl);
+                        });
+                    } else {
+                        this.showShareModal(shareUrl);
+                    }
+                },
+                showShareModal(url) {
+                    const modal = document.createElement('div');
+                    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]';
+                    modal.innerHTML = `
+                        <div class="bg-white rounded-3xl p-6 max-w-md w-full mx-4">
+                            <h3 class="text-lg font-bold mb-4">分享連結</h3>
+                            <p class="text-sm text-gray-600 mb-4">複製以下連結分享給朋友：</p>
+                            <textarea class="w-full h-24 p-3 border rounded-xl text-sm resize-none" readonly>${url}</textarea>
+                            <div class="flex gap-2 mt-4">
+                                <button onclick="navigator.clipboard.writeText('${url}').then(() => { this.closest('.fixed').remove(); alert('已複製'); })" class="flex-1 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600">複製連結</button>
+                                <button onclick="this.closest('.fixed').remove()" class="px-4 py-2 bg-gray-200 rounded-xl hover:bg-gray-300">關閉</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) modal.remove();
+                    });
                 }
             },
             mounted() {
