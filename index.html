@@ -1856,9 +1856,9 @@
                         this.clearSyncTimer();
                         this.isSyncing = false;
                         this.syncState = 'local';
-                        this.remoteSyncEnabled = false;
+                        console.warn('Firebase 寫入失敗:', error.message);
                         if (!silent) {
-                            this.showToastMessage('雲端暫時無法使用，已切換成本機模式');
+                            this.showToastMessage('雲端同步延遲，稍後重試');
                         }
                     }
                 },
@@ -1908,7 +1908,7 @@
                         this.clearSyncTimer();
                         this.isSyncing = false;
                         this.syncState = 'local';
-                        this.remoteSyncEnabled = false;
+                        console.warn('Firebase 讀取失敗:', error.message);
                     }
 
                     if (!this.remoteListenerAttached) {
