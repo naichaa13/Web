@@ -448,8 +448,19 @@
                         </button>
                     </div>
 
-                    <div v-if="selectedShoppingGroup" class="grid grid-cols-[1fr_84px_60px] gap-2">
+                    <div v-if="selectedShoppingGroup" class="grid grid-cols-[1fr_1fr_84px_60px] gap-2 items-center">
                         <input v-model="newShoppingItem" @keyup.enter="addShoppingItem" type="text" placeholder="新增物品" class="rounded-2xl bg-morandi-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-morandi-300 min-w-0">
+                        <div class="relative">
+                            <button @click="$refs.shoppingImageInput.click()" class="w-full rounded-2xl bg-morandi-50 px-3 py-3 text-sm text-morandi-600 flex items-center justify-center gap-1 hover:bg-morandi-100 transition">
+                                <i class="fas fa-image text-xs"></i>
+                                <span v-if="!newShoppingImage" class="truncate">圖片</span>
+                                <span v-else class="truncate text-green-600">已選</span>
+                            </button>
+                            <input ref="shoppingImageInput" type="file" accept="image/*" class="hidden" @change="handleShoppingImageSelect">
+                            <button v-if="newShoppingImage" @click="newShoppingImage = null" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-400 text-white text-xs flex items-center justify-center">
+                                <i class="fas fa-times text-[10px]"></i>
+                            </button>
+                        </div>
                         <input v-model.number="shoppingQuantity" type="number" min="1" class="rounded-2xl bg-morandi-50 px-3 py-3 text-sm text-center outline-none focus:ring-2 focus:ring-morandi-300">
                         <button @click="addShoppingItem" class="rounded-2xl bg-morandi-700 text-white text-sm">加入</button>
                     </div>
@@ -476,6 +487,9 @@
                         <button @click="toggleShoppingItem(groupIndex, itemIndex)" :class="['w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0', item.completed ? 'bg-morandi-700 border-morandi-700 text-white' : 'border-morandi-300 text-transparent']">
                             <i class="fas fa-check text-xs"></i>
                         </button>
+                        <div v-if="item.image" class="w-12 h-12 rounded-xl overflow-hidden bg-morandi-50 shrink-0">
+                            <img :src="item.image" class="w-full h-full object-cover">
+                        </div>
                         <div class="flex-1 min-w-0">
                             <p :class="['text-sm break-words', item.completed ? 'line-through text-morandi-400' : 'text-morandi-800']">{{ item.name }}</p>
                         </div>
@@ -732,6 +746,7 @@
                     selectedShoppingGroupId: 'default',
                     newShoppingGroupName: '',
                     newShoppingItem: '',
+                    newShoppingImage: null,
                     shoppingQuantity: 1,
 
                     expenseCategories: [
@@ -1167,15 +1182,34 @@
                         this.showToastMessage('請輸入物品名稱');
                         return;
                     }
-                    this.selectedShoppingGroup.items.push({
+                    const newItem = {
                         id: this.makeId('shopping-item'),
                         name: this.newShoppingItem.trim(),
                         quantity: Number(this.shoppingQuantity) || 1,
                         completed: false
-                    });
+                    };
+                    if (this.newShoppingImage) {
+                        newItem.image = this.newShoppingImage;
+                    }
+                    this.selectedShoppingGroup.items.push(newItem);
                     this.newShoppingItem = '';
+                    this.newShoppingImage = null;
                     this.shoppingQuantity = 1;
                     this.persistData();
+                },
+                handleShoppingImageSelect(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    if (file.size > 2 * 1024 * 1024) {
+                        this.showToastMessage('圖片大小不能超過 2MB');
+                        event.target.value = '';
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.newShoppingImage = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
                 },
                 toggleShoppingItem(groupIndex, itemIndex) {
                     const item = this.shoppingGroups[groupIndex].items[itemIndex];
@@ -1617,7 +1651,7 @@
                     this.shoppingGroups = (Array.isArray(data.shoppingGroups) ? data.shoppingGroups : []).filter(g => g && g.id).length > 0
                         ? data.shoppingGroups.filter(g => g && g.id).map(group => ({
                             ...group,
-                            items: Array.isArray(group.items) ? group.items : []
+                            items: (Array.isArray(group.items) ? group.items : []).filter(item => item && item.id && item.name)
                         }))
                         : [{ id: 'default', name: '我的', items: [] }];
                     this.savedLinks = Array.isArray(data.savedLinks) ? data.savedLinks : [];
