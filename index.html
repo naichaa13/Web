@@ -487,7 +487,7 @@
                         <button @click="toggleShoppingItem(groupIndex, itemIndex)" :class="['w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0', item.completed ? 'bg-morandi-700 border-morandi-700 text-white' : 'border-morandi-300 text-transparent']">
                             <i class="fas fa-check text-xs"></i>
                         </button>
-                        <div v-if="item.image" class="w-12 h-12 rounded-xl overflow-hidden bg-morandi-50 shrink-0">
+                        <div v-if="item.image" class="w-12 h-12 rounded-xl overflow-hidden bg-morandi-50 shrink-0 cursor-pointer" @click="previewImage = item.image">
                             <img :src="item.image" class="w-full h-full object-cover">
                         </div>
                         <div class="flex-1 min-w-0">
@@ -676,6 +676,13 @@
                 </div>
             </div>
         </transition>
+
+        <transition name="fade">
+            <div v-if="previewImage" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4" @click.self="previewImage = null">
+                <img :src="previewImage" class="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl">
+                <button @click="previewImage = null" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 text-white hover:bg-white/30 transition"><i class="fas fa-times"></i></button>
+            </div>
+        </transition>
     </div>
 
     <script>
@@ -775,7 +782,6 @@
                     showScheduleModal: false,
                     showLocationModal: false,
                     showExpenseModal: false,
-                    showLinkModal: false,
 
                     editingTripIndex: null,
                     currentTripIndex: null,
