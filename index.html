@@ -774,6 +774,9 @@
                     remoteListenerAttached: false,
                     applyingRemoteData: false,
                     lastSavedAt: null,
+                    syncRetryTimer: null,
+                    syncRetryCount: 0,
+                    saveTimer: null,
 
                     map: null,
                     mapMarkers: [],
@@ -1821,11 +1824,30 @@
                         clearTimeout(this.syncTimer);
                         this.syncTimer = null;
                     }
+                    if (this.syncRetryTimer) {
+                        clearTimeout(this.syncRetryTimer);
+                        this.syncRetryTimer = null;
+                    }
+                },
+                scheduleSyncRetry() {
+                    if (this.syncRetryCount >= 5) return;
+                    this.syncRetryCount++;
+                    const delay = Math.min(3000 * this.syncRetryCount, 30000);
+                    this.syncRetryTimer = setTimeout(() => {
+                        console.log(`嘗試重新連線... (第${this.syncRetryCount}次)`);
+                        this.loadData();
+                    }, delay);
+                },
+                resetSyncRetry() {
+                    this.syncRetryCount = 0;
+                    if (this.syncRetryTimer) {
+                        clearTimeout(this.syncRetryTimer);
+                        this.syncRetryTimer = null;
+                    }
                 },
                 async persistData(options = {}) {
                     const { skipRemote = false, silent = false } = options;
                     const data = this.serializeData();
-                    console.log('persistData called, shoppingGroups:', JSON.stringify(data.shoppingGroups));
                     this.saveToLocal(data);
 
                     if (skipRemote || !this.firebaseReady || !this.remoteSyncEnabled || !database || this.applyingRemoteData) {
@@ -1836,22 +1858,31 @@
                         return;
                     }
 
-                    this.clearSyncTimer();
+                    if (this.saveTimer) {
+                        clearTimeout(this.saveTimer);
+                    }
+                    this.saveTimer = setTimeout(async () => {
+                        await this.doSyncToCloud(data, silent);
+                    }, 1000);
+                },
+                async doSyncToCloud(data, silent = false) {
                     this.isSyncing = true;
                     this.syncState = 'syncing';
+                    this.clearSyncTimer();
                     this.syncTimer = setTimeout(() => {
                         this.isSyncing = false;
-                        this.syncState = 'error';
+                        this.syncState = 'local';
                         if (!silent) {
-                            this.showToastMessage('雲端同步較慢，已先保存在本機');
+                            this.showToastMessage('雲端同步稍慢，已保存本機');
                         }
-                    }, 4000);
+                    }, 5000);
 
                     try {
                         await database.ref('travelPlannerApp').set(data);
                         this.clearSyncTimer();
                         this.isSyncing = false;
                         this.syncState = 'online';
+                        this.resetSyncRetry();
                     } catch (error) {
                         this.clearSyncTimer();
                         this.isSyncing = false;
@@ -1904,11 +1935,13 @@
                         this.clearSyncTimer();
                         this.isSyncing = false;
                         this.syncState = 'online';
+                        this.resetSyncRetry();
                     } catch (error) {
                         this.clearSyncTimer();
                         this.isSyncing = false;
                         this.syncState = 'local';
                         console.warn('Firebase 讀取失敗:', error.message);
+                        this.scheduleSyncRetry();
                     }
 
                     if (!this.remoteListenerAttached) {
@@ -1924,6 +1957,7 @@
                             this.saveToLocal(this.serializeData());
                             this.applyingRemoteData = false;
                             this.syncState = 'online';
+                            this.resetSyncRetry();
                             this.$nextTick(() => this.scheduleMapRefresh(0));
                         });
                         this.remoteListenerAttached = true;
