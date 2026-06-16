@@ -1685,6 +1685,7 @@
                 async persistData(options = {}) {
                     const { skipRemote = false, silent = false } = options;
                     const data = this.serializeData();
+                    console.log('persistData called, shoppingGroups:', JSON.stringify(data.shoppingGroups));
                     this.saveToLocal(data);
 
                     if (skipRemote || !this.firebaseReady || !this.remoteSyncEnabled || !database || this.applyingRemoteData) {
