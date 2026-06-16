@@ -494,6 +494,7 @@
                             <p :class="['text-sm break-words', item.completed ? 'line-through text-morandi-400' : 'text-morandi-800']">{{ item.name }}</p>
                         </div>
                         <span class="px-2 py-1 rounded-xl bg-morandi-100 text-morandi-600 text-sm shrink-0">x{{ item.quantity }}</span>
+                        <button @click="editShoppingItem(groupIndex, itemIndex)" class="w-8 h-8 rounded-2xl bg-morandi-50 text-morandi-600 shrink-0"><i class="fas fa-edit text-xs"></i></button>
                         <button @click="removeShoppingItem(groupIndex, itemIndex)" class="w-8 h-8 rounded-2xl bg-red-50 text-red-400 shrink-0"><i class="fas fa-times text-xs"></i></button>
                     </div>
                     </template>
@@ -677,6 +678,36 @@
             </div>
         </transition>
 
+        <transition name="sheet">
+            <div v-if="showShoppingEditModal" class="modal-mask" @click.self="closeShoppingEditModal()">
+                <div class="modal-card bg-white p-5 shadow-float space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-morandi-800">編輯項目</h3>
+                        <button @click="closeShoppingEditModal()" class="w-9 h-9 rounded-2xl bg-morandi-100 text-morandi-700"><i class="fas fa-times"></i></button>
+                    </div>
+                    <input v-model="shoppingForm.name" type="text" placeholder="物品名稱" class="w-full rounded-2xl bg-morandi-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-morandi-300">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-morandi-600">數量</span>
+                        <button @click="shoppingForm.quantity = Math.max(1, shoppingForm.quantity - 1)" class="w-8 h-8 rounded-full bg-morandi-100 text-morandi-700">-</button>
+                        <input v-model.number="shoppingForm.quantity" type="number" min="1" class="w-16 rounded-2xl bg-morandi-50 px-3 py-2 text-sm text-center outline-none">
+                        <button @click="shoppingForm.quantity++" class="w-8 h-8 rounded-full bg-morandi-100 text-morandi-700">+</button>
+                    </div>
+                    <div class="relative">
+                        <button @click="$refs.editShoppingImageInput.click()" class="w-full rounded-2xl bg-morandi-50 px-3 py-3 text-sm text-morandi-600 flex items-center justify-center gap-1 hover:bg-morandi-100 transition">
+                            <i class="fas fa-image text-xs"></i>
+                            <span v-if="!shoppingForm.image" class="truncate">更換圖片</span>
+                            <span v-else class="truncate text-green-600">已選</span>
+                        </button>
+                        <input ref="editShoppingImageInput" type="file" accept="image/*" class="hidden" @change="handleEditShoppingImageSelect">
+                        <button v-if="shoppingForm.image" @click="shoppingForm.image = null" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-400 text-white text-xs flex items-center justify-center">
+                            <i class="fas fa-times text-[10px]"></i>
+                        </button>
+                    </div>
+                    <button @click="saveShoppingItemEdit" class="w-full rounded-2xl bg-morandi-700 py-3 text-white font-medium">儲存</button>
+                </div>
+            </div>
+        </transition>
+
         <transition name="fade">
             <div v-if="previewImage" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4" @click.self="previewImage = null">
                 <img :src="previewImage" class="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl">
@@ -810,6 +841,14 @@
                         rating: 0,
                         autoFetched: false
                     },
+                    shoppingForm: {
+                        name: '',
+                        quantity: 1,
+                        image: null
+                    },
+                    editingShoppingGroupIndex: null,
+                    editingShoppingItemIndex: null,
+                    showShoppingEditModal: false,
 
                     showToast: false,
                     toastMessage: '',
@@ -1227,6 +1266,50 @@
                 removeShoppingItem(groupIndex, itemIndex) {
                     this.shoppingGroups[groupIndex].items.splice(itemIndex, 1);
                     this.persistData();
+                },
+                editShoppingItem(groupIndex, itemIndex) {
+                    const item = this.shoppingGroups[groupIndex].items[itemIndex];
+                    this.editingShoppingGroupIndex = groupIndex;
+                    this.editingShoppingItemIndex = itemIndex;
+                    this.shoppingForm = {
+                        name: item.name,
+                        quantity: item.quantity || 1,
+                        image: item.image || null
+                    };
+                    this.showShoppingEditModal = true;
+                },
+                closeShoppingEditModal() {
+                    this.showShoppingEditModal = false;
+                    this.editingShoppingGroupIndex = null;
+                    this.editingShoppingItemIndex = null;
+                    this.shoppingForm = { name: '', quantity: 1, image: null };
+                },
+                saveShoppingItemEdit() {
+                    if (!this.shoppingForm.name.trim()) {
+                        this.showToastMessage('請輸入物品名稱');
+                        return;
+                    }
+                    const item = this.shoppingGroups[this.editingShoppingGroupIndex].items[this.editingShoppingItemIndex];
+                    item.name = this.shoppingForm.name.trim();
+                    item.quantity = Number(this.shoppingForm.quantity) || 1;
+                    item.image = this.shoppingForm.image;
+                    this.persistData();
+                    this.closeShoppingEditModal();
+                    this.showToastMessage('已更新項目');
+                },
+                handleEditShoppingImageSelect(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    if (file.size > 2 * 1024 * 1024) {
+                        this.showToastMessage('圖片大小不能超過 2MB');
+                        event.target.value = '';
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.shoppingForm.image = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
                 },
                 openLinkModal() {
                     this.editingLinkIndex = null;
@@ -1673,8 +1756,15 @@
                     }
                 },
                 saveToLocal(data) {
-                    localStorage.setItem('travelPlannerData', JSON.stringify(data));
-                    this.lastSavedAt = Date.now();
+                    try {
+                        const jsonStr = JSON.stringify(data);
+                        console.log('saveToLocal, size:', new Blob([jsonStr]).size);
+                        localStorage.setItem('travelPlannerData', jsonStr);
+                        console.log('saveToLocal success');
+                    } catch (error) {
+                        console.error('saveToLocal ERROR:', error.name, error.message);
+                        this.showToastMessage('儲存失敗：' + error.message);
+                    }
                 },
                 clearSyncTimer() {
                     if (this.syncTimer) {
