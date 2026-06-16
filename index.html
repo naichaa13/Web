@@ -512,10 +512,18 @@
 
                 <div v-if="savedLinks.length === 0" class="rounded-[28px] bg-white p-6 shadow-soft text-center text-morandi-500">還沒有儲存旅遊連結。</div>
 
-                <article v-for="(link, index) in savedLinks" :key="link.id" class="rounded-[28px] bg-white p-4 shadow-soft space-y-4">
+                <div v-if="savedLinks.length > 0" class="flex flex-wrap gap-2 mb-4">
+                    <button @click="linkFilter = null" :class="['px-3 py-1.5 rounded-full text-xs transition', !linkFilter ? 'bg-morandi-700 text-white' : 'bg-morandi-100 text-morandi-600']">全部</button>
+                    <button v-for="cat in linkCategories" :key="cat.id" @click="linkFilter = cat.id" :class="['px-3 py-1.5 rounded-full text-xs transition flex items-center gap-1', linkFilter === cat.id ? 'bg-morandi-700 text-white' : 'bg-morandi-100 text-morandi-600']">
+                        <i :class="['fas', cat.icon]"></i>
+                        <span>{{ cat.name }}</span>
+                    </button>
+                </div>
+
+                <article v-for="(link, index) in filteredLinks" :key="link.id" class="rounded-[28px] bg-white p-4 shadow-soft space-y-4">
                     <div class="flex items-start gap-3">
                         <div class="w-11 h-11 rounded-2xl bg-morandi-100 text-morandi-700 flex items-center justify-center shrink-0">
-                            <i class="fas fa-link"></i>
+                            <i :class="['fas', linkCategories.find(c => c.id === link.category)?.icon || 'fa-link']"></i>
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex flex-wrap items-center gap-2">
@@ -667,6 +675,12 @@
                     <div class="flex items-center justify-between">
                         <h3 class="text-lg font-semibold text-morandi-800">{{ editingLinkIndex === null ? '新增連結' : '編輯連結' }}</h3>
                         <button @click="closeLinkModal()" class="w-9 h-9 rounded-2xl bg-morandi-100 text-morandi-700"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button v-for="cat in linkCategories" :key="cat.id" @click="linkForm.category = cat.id" :class="['px-3 py-2 rounded-2xl text-sm flex items-center gap-1.5 transition', linkForm.category === cat.id ? 'bg-morandi-700 text-white' : 'bg-morandi-50 text-morandi-600']">
+                            <i :class="['fas', cat.icon, 'text-xs']"></i>
+                            <span>{{ cat.name }}</span>
+                        </button>
                     </div>
                     <input v-model="linkForm.title" type="text" placeholder="標題" class="w-full rounded-2xl bg-morandi-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-morandi-300">
                     <input v-model="linkForm.url" @blur="fetchLinkInfo" type="url" placeholder="https://..." class="w-full rounded-2xl bg-morandi-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-morandi-300">
@@ -839,8 +853,17 @@
                         location: '',
                         review: '',
                         rating: 0,
-                        autoFetched: false
+                        autoFetched: false,
+                        category: 'food'
                     },
+                    linkCategories: [
+                        { id: 'food', name: '吃', icon: 'fa-utensils' },
+                        { id: 'stay', name: '住', icon: 'fa-bed' },
+                        { id: 'shop', name: '購物', icon: 'fa-bag-shopping' },
+                        { id: 'attraction', name: '景點', icon: 'fa-camera' },
+                        { id: 'transport', name: '交通', icon: 'fa-train' },
+                        { id: 'other', name: '其他', icon: 'fa-bookmark' }
+                    ],
                     shoppingForm: {
                         name: '',
                         quantity: 1,
@@ -849,6 +872,7 @@
                     editingShoppingGroupIndex: null,
                     editingShoppingItemIndex: null,
                     showShoppingEditModal: false,
+                    linkFilter: null,
 
                     showToast: false,
                     toastMessage: '',
@@ -867,6 +891,10 @@
                     if (this.isSyncing) return 'bg-amber-400';
                     if (this.syncState === 'error') return 'bg-red-400';
                     return 'bg-green-400';
+                },
+                filteredLinks() {
+                    if (!this.linkFilter) return this.savedLinks;
+                    return this.savedLinks.filter(l => l.category === this.linkFilter);
                 },
                 itineraryLocations() {
                     return this.trips.flatMap(trip =>
@@ -1313,17 +1341,20 @@
                 },
                 openLinkModal() {
                     this.editingLinkIndex = null;
-                    this.linkForm = { title: '', url: '', description: '', location: '', review: '', rating: 0, autoFetched: false };
+                    this.linkForm = { title: '', url: '', description: '', location: '', review: '', rating: 0, autoFetched: false, category: 'food' };
                     this.showLinkModal = true;
                 },
                 closeLinkModal() {
                     this.showLinkModal = false;
                     this.editingLinkIndex = null;
-                    this.linkForm = { title: '', url: '', description: '', location: '', review: '', rating: 0, autoFetched: false };
+                    this.linkForm = { title: '', url: '', description: '', location: '', review: '', rating: 0, autoFetched: false, category: 'food' };
                 },
                 editLink(index) {
                     this.editingLinkIndex = index;
-                    this.linkForm = { ...this.savedLinks[index] };
+                    this.linkForm = { 
+                        ...this.savedLinks[index],
+                        autoFetched: false
+                    };
                     this.showLinkModal = true;
                 },
                 openExternalLink(url) {
@@ -1357,6 +1388,16 @@
                         try {
                             this.linkForm.title = new URL(normalizedUrl).hostname.replace('www.', '');
                         } catch (error) {}
+                    }
+
+                    if (normalizedUrl.includes('threads.net') || normalizedUrl.includes('threads.com')) {
+                        const urlParts = normalizedUrl.split('/');
+                        const postIndex = urlParts.findIndex(p => p === 'post' || p === 'thread');
+                        if (postIndex !== -1) {
+                            this.linkForm.title = 'Threads 帖子';
+                        }
+                        this.linkForm.description = '（Threads 內容需要登入查看）';
+                        return;
                     }
 
                     try {
@@ -1408,7 +1449,8 @@
                         location: (this.linkForm.location || '').trim(),
                         review: (this.linkForm.review || '').trim(),
                         rating: this.linkForm.rating || 0,
-                        autoFetched: Boolean(this.linkForm.autoFetched)
+                        autoFetched: Boolean(this.linkForm.autoFetched),
+                        category: this.linkForm.category || 'other'
                     };
 
                     if (this.editingLinkIndex === null) {
