@@ -1750,7 +1750,11 @@
                     try {
                         const snapshot = await database.ref('travelPlannerApp').once('value');
                         const remoteData = snapshot.val();
+                        const localData = localStorage.getItem('travelPlannerData');
+                        const hasLocalData = localData && JSON.parse(localData);
                         if (remoteData) {
+                            const hasLocalShoppingItems = hasLocalData?.shoppingGroups?.some(g => g.items?.length > 0);
+                            if (hasLocalShoppingItems && !remoteData?.shoppingGroups?.some(g => g.items?.length > 0)) return;
                             this.applyingRemoteData = true;
                             this.hydrateData(remoteData);
                             this.saveToLocal(this.serializeData());
@@ -1768,9 +1772,13 @@
 
                     if (!this.remoteListenerAttached) {
                         database.ref('travelPlannerApp').on('value', snapshot => {
-                            const remoteData = snapshot.val();
-                            if (!remoteData || this.isSyncing) return;
-                            this.applyingRemoteData = true;
+                        const remoteData = snapshot.val();
+                        if (!remoteData || this.isSyncing) return;
+                        if (this.applyingRemoteData) return;
+                        const localData = localStorage.getItem('travelPlannerData');
+                        const hasLocalShoppingItems = localData && JSON.parse(localData)?.shoppingGroups?.some(g => g.items?.length > 0);
+                        if (hasLocalShoppingItems && !remoteData?.shoppingGroups?.some(g => g.items?.length > 0)) return;
+                        this.applyingRemoteData = true;
                             this.hydrateData(remoteData);
                             this.saveToLocal(this.serializeData());
                             this.applyingRemoteData = false;
